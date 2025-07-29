@@ -110,7 +110,7 @@ defmodule Etiquette.Spec do
         @doc """
         Returns whether the given packet follows the #{unquote(spec.name)} specification.
         """
-        def unquote(is_name)(input) when is_binary(input) do
+        def unquote(is_name)(input) when is_bitstring(input) do
           rest = input
 
           unquote_splicing(
