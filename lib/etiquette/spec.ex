@@ -14,6 +14,8 @@ defmodule Etiquette.Spec do
       Module.put_attribute(__MODULE__, unquote(@packet_specs), %{})
 
       @before_compile Etiquette.Spec
+
+      @type packet :: bitstring()
     end
   end
 
@@ -32,7 +34,12 @@ defmodule Etiquette.Spec do
         unquote(@packet_specs),
         __MODULE__
         |> Module.get_attribute(unquote(@packet_specs))
-        |> Map.put(unquote(id), %{fields: [], id: unquote(id), name: unquote(name), of: unquote(Keyword.get(args, :of))})
+        |> Map.put(unquote(id), %{
+          fields: [],
+          id: unquote(id),
+          name: unquote(name),
+          of: unquote(Keyword.get(args, :of))
+        })
       )
 
       Module.put_attribute(__MODULE__, unquote(@current_packet_ast), [])
@@ -54,6 +61,7 @@ defmodule Etiquette.Spec do
 
   defmacro field(name, length, opts) do
     length_by = Keyword.get(opts, :length_by, nil)
+    part_of = Keyword.get(opts, :part_of)
 
     length_by =
       case Keyword.get(opts, :fixed, nil) do
@@ -73,10 +81,11 @@ defmodule Etiquette.Spec do
       new_packet_spec =
         %{
           name: unquote(name),
-          ex_name: ex_name,
+          ex_name: String.to_atom(ex_name),
           length: unquote(length),
           opts: unquote(opts),
-          length_by: unquote(length_by)
+          length_by: unquote(length_by),
+          part_of: unquote(part_of)
         }
 
       new_fields = current_packet_spec_fields ++ [new_packet_spec]
@@ -95,28 +104,38 @@ defmodule Etiquette.Spec do
 
     for {id, spec} <- packet_specs, into: [] do
       is_name = :"is_#{id}?"
+      parse_name = :"parse_#{id}"
 
       fields =
-        case spec.of do
-          nil ->
-            spec.fields
+        if is_atom(spec.of) and not is_nil(spec.of) do
+          parent_spec = packet_specs[spec.of]
+          merge_parent_and_child_of(parent_spec.fields, spec.fields)
+        else
+          spec.fields
+        end
 
-          parent when is_atom(parent) ->
-            parent_spec = packet_specs[parent]
-            merge_parent_and_child(parent_spec.fields, spec.fields)
+      keys_ast =
+        for key <- Enum.map(fields, fn f -> f.ex_name end) do
+          key
+        end
+
+      map_ast =
+        for key <- keys_ast do
+          {key, {:bitstring, [], Elixir}}
         end
 
       quote do
         @doc """
         Returns whether the given packet follows the #{unquote(spec.name)} specification.
         """
+        @spec unquote(is_name)(packet()) :: boolean()
         def unquote(is_name)(input) when is_bitstring(input) do
           rest = input
 
           unquote_splicing(
             List.flatten(
               Enum.map(fields, fn f ->
-                field_name = Macro.var(String.to_atom(f.ex_name), __MODULE__)
+                field_name = Macro.var(f.ex_name, __MODULE__)
 
                 case f do
                   %{length: a..b//1, length_by: nil} when a < b or b == -1 ->
@@ -157,7 +176,8 @@ defmodule Etiquette.Spec do
 
                   %{length_by: lb} when is_atom(lb) ->
                     quote do
-                      <<unquote(field_name)::size(unquote(Macro.var(lb, __ENV__.module))), rest::bitstring>> = rest
+                      <<unquote(field_name)::size((unquote(Macro.var(lb, __ENV__.module)) + 1) * 8), rest::bitstring>> =
+                        rest
                     end
                 end
               end)
@@ -167,6 +187,78 @@ defmodule Etiquette.Spec do
           true
         rescue
           MatchError -> false
+        end
+
+        def unquote(is_name)(input), do: false
+
+        @spec unquote(parse_name)(packet()) :: %{unquote_splicing(map_ast)}
+        def unquote(parse_name)(input) do
+          rest = input
+
+          unquote_splicing(
+            List.flatten(
+              Enum.map(fields, fn f ->
+                field_name = Macro.var(f.ex_name, __MODULE__)
+
+                case f do
+                  %{length: a..b//1, length_by: nil} when a < b or b == -1 ->
+                    quote do
+                      unquote(field_name) = rest
+                    end
+
+                  %{length: :undefined, length_by: nil} ->
+                    quote do
+                      unquote(field_name) = rest
+                    end
+
+                  %{length_by: lb, length: l} when is_integer(lb) ->
+                    quote do
+                      <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
+                        <<unquote(lb)::size(unquote(l)), rest::bitstring>> = rest
+                    end
+
+                  %{length: l} when is_integer(l) ->
+                    quote do
+                      <<unquote(field_name)::size(unquote(l)), rest::bitstring>> = rest
+                    end
+
+                  %{length_by: lb} when is_function(lb) ->
+                    [
+                      quote do
+                        bit_segment_size = unquote(lb).(rest)
+                      end,
+                      quote do
+                        <<unquote(field_name)::size(bit_segment_size), rest::bitstring>> = rest
+                      end
+                    ]
+
+                  %{length_by: nil, length: _l} ->
+                    quote do
+                      <<unquote(field_name), rest::bitstring>> = rest
+                    end
+
+                  %{length_by: lb} when is_atom(lb) ->
+                    quote do
+                      <<unquote(field_name)::size((unquote(Macro.var(lb, __ENV__.module)) + 1) * 8), rest::bitstring>> =
+                        rest
+                    end
+                end
+              end)
+            )
+          )
+
+          Map.new([
+            unquote_splicing(
+              Enum.map(fields, fn f ->
+                field_name = f.ex_name
+                field_var = Macro.var(f.ex_name, __MODULE__)
+
+                quote do
+                  {unquote(field_name), unquote(field_var)}
+                end
+              end)
+            )
+          ])
         end
       end
     end
@@ -181,31 +273,33 @@ defmodule Etiquette.Spec do
     |> Enum.map_join(&String.capitalize/1)
     |> String.replace(" ", "")
     |> Macro.underscore()
+    |> String.replace("-", "_")
     |> String.replace("-", "")
   end
 
-  def merge_parent_and_child(parent_fields, child_fields) do
-    new_parent_fields =
-      parent_fields
-      |> Enum.reduce([], fn parent_field, acc ->
+  defp merge_parent_and_child_of(parent_fields, child_fields) do
+    parent_names = Enum.map(parent_fields, & &1.ex_name)
+
+    children_names = Enum.map(child_fields, & &1.ex_name)
+    children_part_of = Enum.map(child_fields, & &1.part_of)
+
+    not_inherited_children =
+      Enum.filter(child_fields, fn child_field ->
+        is_nil(child_field.part_of) and child_field.ex_name not in parent_names
+      end)
+
+    parent_with_inherited_children =
+      Enum.reduce(parent_fields, [], fn parent_field, acc ->
+        parent_name = parent_field.ex_name
+
         acc ++
-          [
-            if parent_field.ex_name in Enum.map(child_fields, fn f -> f.ex_name end) do
-              Enum.filter(child_fields, fn f -> f.ex_name == parent_field.ex_name end)
-            else
-              parent_field
-            end
-          ]
+          cond do
+            parent_name in children_names -> Enum.filter(child_fields, &(&1.ex_name == parent_name))
+            parent_name in children_part_of -> Enum.filter(child_fields, &(&1.part_of == parent_name))
+            true -> [parent_field]
+          end
       end)
-      |> List.flatten()
 
-    new_child_fields =
-      child_fields
-      |> Enum.filter(fn field ->
-        field.ex_name not in Enum.map(parent_fields, fn f -> f.ex_name end)
-      end)
-      |> List.flatten()
-
-    Enum.slice(new_parent_fields, 0..-2//1) ++ new_child_fields
+    parent_with_inherited_children ++ not_inherited_children
   end
 end

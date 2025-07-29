@@ -50,8 +50,9 @@ Now we have a specification such that:
 
 - [ ] Generate pretty markdown documentation from the spec module
 - [ ] Generate pretty markdown documentation for each function
-- [ ] Generate complete typespecs in functions for easier use
+- [x] Generate complete typespecs in functions for easier use
 - [ ] Implement `generate_x_packet(field1, field2, ...) :: <<...>>`
-- [ ] Implement `parse_x_packet(<<>>) :: %{field1: ..., field2: ..., ...}`
+- [x] Implement `parse_x_packet(<<>>) :: %{field1: ..., field2: ..., ...}`
 - [ ] Improve inheritance between packet specs (for using the same header, for fixing values of previously defined fields, etc...)
+    TODO: Add more tests to cover corner cases of inheritance (order changes, last field injection, validation of lengths).
 - [ ] Add sigils for concise specs?
