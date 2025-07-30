@@ -7,7 +7,13 @@ defmodule Etiquette.Spec do
 
   @function_body_ast :function_body_ast
 
-  defmacro __using__(_opts) do
+  @docs_formats [:rfc, :md_list, :md_table]
+  @default_docs_format :rfc
+
+  defmacro __using__(opts) do
+    docs_format = Keyword.get(opts, :docs_format, @default_docs_format)
+    docs_format = if docs_format in @docs_formats, do: docs_format, else: @default_docs_format
+
     quote do
       import Etiquette.Spec
 
@@ -15,10 +21,26 @@ defmodule Etiquette.Spec do
 
       @before_compile Etiquette.Spec
 
+      @docs_format unquote(docs_format)
+
       @type packet :: bitstring()
     end
   end
 
+  @doc """
+  Declares a packet specification. A packet specification is composed of a sequence of `fields`.
+  Other arguments are also available:
+  - `name`: Mandatory field. A string with the name of the field.
+  - `id`: An atom used to take care of references. When another packet uses the `of` argument, the
+    id is what will be used for reference.
+  - `of`: Declares that a packet follows a previously declared packet specification. The specs have
+    to be declared in the same file. This argument needs to be present when using `part_of`.
+
+  The packet contents themselves are declared inside a `do` block containing `field`s. For more
+  information, see [`field`](./spec.ex#field)
+
+  See the [tests](../../test) for more examples.
+  """
   defmacro packet(name, args, do: block) do
     id =
       Keyword.get(args, :id) ||
@@ -59,6 +81,50 @@ defmodule Etiquette.Spec do
     end
   end
 
+  @doc """
+  Defines the structure of a packet field. A packet field is a specific section of the packet.
+  Mandatory arguments to be provided are:
+  - `name`: The full name of the field.
+  - `length`: The length of the field. Can be an `int` or a `Range`. An `int` will be interpreted as
+  the field having a fixed length. A `Range` can be provided as a way to limit and validate the size
+  of the field at runtime. It can take the form of a normal range (i. e. `(8..256)`) or a full range
+  (`(..)`). Helper functions are also provided (`min/1` and `max/1`) to create clear ranges that
+  only have upper or lower limits.
+
+  The list of optional arguments is:
+  - `doc`: Provides full documentation on the field. This documentation will be used to document the
+    whole module that is using `Etiquette.Spec`.
+  - `fixed`: If a field is fixed to a specific value. Useful when specifying variants of a packet
+    type, so it's possible, for instance, to declare in the spec that a field has to have a certain
+    value for the packet to be considered a certain type. Think of how headers usually have a field
+    that is used to specify the packet type.
+  - `length_by`: Used to indicate that the length of the field is not fixed and declared through
+    other means. The following are supported:
+    - An **atom**: An atom can be used to use for reference. It will be interpreted that
+      `length_by: :atom` means that the field's length is the value of the field that has `id: :atom`.
+    - A **function**. If a function is provided instead, the value of the field will be passed to the
+      function and the result will be used as the length of the field. For example, using
+      `length_by: &Module.calc_function/1` will mean that the result of passing the value of the
+      packet (starting from the position of the bits of that field, not the whole packet) to that
+      function, will return a positive integer that will be used as the length of the field.
+  - `part_of`: Used to declare that a specific field of a parent packet specification is subdivided
+    into smaller fields. For example, a packet payload of a generic packet spec, can be divided into
+    well-defined fields inside type-specific packet specs. `part_of: :field_id` will be interpreted as
+    this field being part of the field containing `id: :field_id`.
+    This also means that when one or several fields have `part_of: :field_id`, the fields will take
+    the position of the field with `id: :field_id`, and so respect the order of the parent field.
+    This also means that the size of the parent field will have to be coherent with the size of the
+    children fields.
+  - `id`: Must be an atom. An id will be required if another field references this one with
+    `length_by` or `part_of`. It can also be used to specify the name that you want to be
+    used/returned by the generated functions.
+    IDs are also used when parent and child both have the same field declared. You may want to do
+    this when declaring a fixed value in a child spec, for example. In this case, it would be
+    recommended to add an ID to the field in the parent packet spec, and then add the same ID to the
+    same field in the child spec.
+
+  See the [tests](../../test) for more examples.
+  """
   defmacro field(name, length, opts) do
     length_by = Keyword.get(opts, :length_by, nil)
     part_of = Keyword.get(opts, :part_of)
@@ -115,7 +181,7 @@ defmodule Etiquette.Spec do
         end
 
       keys_ast =
-        for key <- Enum.map(fields, fn f -> f.ex_name end) do
+        for key <- Enum.map(fields, fn field -> field.ex_name end) do
           key
         end
 
@@ -132,57 +198,7 @@ defmodule Etiquette.Spec do
         def unquote(is_name)(input) when is_bitstring(input) do
           rest = input
 
-          unquote_splicing(
-            List.flatten(
-              Enum.map(fields, fn f ->
-                field_name = Macro.var(f.ex_name, __MODULE__)
-
-                case f do
-                  %{length: a..b//1, length_by: nil} when a < b or b == -1 ->
-                    quote do
-                      unquote(field_name) = rest
-                    end
-
-                  %{length: :undefined, length_by: nil} ->
-                    quote do
-                      unquote(field_name) = rest
-                    end
-
-                  %{length_by: lb, length: l} when is_integer(lb) ->
-                    quote do
-                      <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
-                        <<unquote(lb)::size(unquote(l)), rest::bitstring>> = rest
-                    end
-
-                  %{length: l} when is_integer(l) ->
-                    quote do
-                      <<unquote(field_name)::size(unquote(l)), rest::bitstring>> = rest
-                    end
-
-                  %{length_by: lb} when is_function(lb) ->
-                    [
-                      quote do
-                        bit_segment_size = unquote(lb).(rest)
-                      end,
-                      quote do
-                        <<unquote(field_name)::size(bit_segment_size), rest::bitstring>> = rest
-                      end
-                    ]
-
-                  %{length_by: nil, length: _l} ->
-                    quote do
-                      <<unquote(field_name), rest::bitstring>> = rest
-                    end
-
-                  %{length_by: lb} when is_atom(lb) ->
-                    quote do
-                      <<unquote(field_name)::size((unquote(Macro.var(lb, __ENV__.module)) + 1) * 8), rest::bitstring>> =
-                        rest
-                    end
-                end
-              end)
-            )
-          )
+          unquote_splicing(parse_destructuring(fields))
 
           true
         rescue
@@ -195,63 +211,13 @@ defmodule Etiquette.Spec do
         def unquote(parse_name)(input) do
           rest = input
 
-          unquote_splicing(
-            List.flatten(
-              Enum.map(fields, fn f ->
-                field_name = Macro.var(f.ex_name, __MODULE__)
-
-                case f do
-                  %{length: a..b//1, length_by: nil} when a < b or b == -1 ->
-                    quote do
-                      unquote(field_name) = rest
-                    end
-
-                  %{length: :undefined, length_by: nil} ->
-                    quote do
-                      unquote(field_name) = rest
-                    end
-
-                  %{length_by: lb, length: l} when is_integer(lb) ->
-                    quote do
-                      <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
-                        <<unquote(lb)::size(unquote(l)), rest::bitstring>> = rest
-                    end
-
-                  %{length: l} when is_integer(l) ->
-                    quote do
-                      <<unquote(field_name)::size(unquote(l)), rest::bitstring>> = rest
-                    end
-
-                  %{length_by: lb} when is_function(lb) ->
-                    [
-                      quote do
-                        bit_segment_size = unquote(lb).(rest)
-                      end,
-                      quote do
-                        <<unquote(field_name)::size(bit_segment_size), rest::bitstring>> = rest
-                      end
-                    ]
-
-                  %{length_by: nil, length: _l} ->
-                    quote do
-                      <<unquote(field_name), rest::bitstring>> = rest
-                    end
-
-                  %{length_by: lb} when is_atom(lb) ->
-                    quote do
-                      <<unquote(field_name)::size((unquote(Macro.var(lb, __ENV__.module)) + 1) * 8), rest::bitstring>> =
-                        rest
-                    end
-                end
-              end)
-            )
-          )
+          unquote_splicing(parse_destructuring(fields))
 
           Map.new([
             unquote_splicing(
-              Enum.map(fields, fn f ->
-                field_name = f.ex_name
-                field_var = Macro.var(f.ex_name, __MODULE__)
+              Enum.map(fields, fn field ->
+                field_name = field.ex_name
+                field_var = Macro.var(field.ex_name, __MODULE__)
 
                 quote do
                   {unquote(field_name), unquote(field_var)}
@@ -264,7 +230,9 @@ defmodule Etiquette.Spec do
     end
   end
 
+  @doc "A range going from minimum `num` up to the end."
   def min(num), do: num..-1//1
+  @doc "A range going from the start up to maximum `num`."
   def max(num), do: 0..num//1
 
   defp snake_case(string) do
@@ -301,5 +269,52 @@ defmodule Etiquette.Spec do
       end)
 
     parent_with_inherited_children ++ not_inherited_children
+  end
+
+  defp parse_destructuring(fields) do
+    fields
+    |> Enum.map(fn field ->
+      field_name = Macro.var(field.ex_name, __MODULE__)
+
+      case field do
+        %{length_by: lb} when is_atom(lb) and not is_nil(lb) ->
+          quote do
+            <<unquote(field_name)::size((unquote(Macro.var(lb, __ENV__.module)) + 1) * 8), rest::bitstring>> =
+              rest
+          end
+
+        %{length: a..b//1, length_by: nil} when a < b or b == -1 ->
+          quote do
+            unquote(field_name) = rest
+          end
+
+        %{length_by: lb, length: l} when is_integer(lb) ->
+          quote do
+            <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
+              <<unquote(lb)::size(unquote(l)), rest::bitstring>> = rest
+          end
+
+        %{length: l} when is_integer(l) ->
+          quote do
+            <<unquote(field_name)::size(unquote(l)), rest::bitstring>> = rest
+          end
+
+        %{length_by: lb} when is_function(lb) ->
+          [
+            quote do
+              bit_segment_size = unquote(lb).(rest)
+            end,
+            quote do
+              <<unquote(field_name)::size(bit_segment_size), rest::bitstring>> = rest
+            end
+          ]
+
+        %{length_by: nil, length: _l} ->
+          quote do
+            <<unquote(field_name), rest::bitstring>> = rest
+          end
+      end
+    end)
+    |> List.flatten()
   end
 end
