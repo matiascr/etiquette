@@ -1,5 +1,6 @@
 defmodule Etiquette.Spec do
   @moduledoc false
+  alias Etiquette.Field
 
   @current_packet_id :current_packet_id
   @current_packet_ast :current_packet_ast
@@ -126,15 +127,16 @@ defmodule Etiquette.Spec do
   See the [tests](../../test) for more examples.
   """
   defmacro field(name, length, opts) do
-    length_by = Keyword.get(opts, :length_by, nil)
     part_of = Keyword.get(opts, :part_of)
     doc = Keyword.get(opts, :doc)
 
     length_by =
       case Keyword.get(opts, :fixed, nil) do
         i when is_integer(i) -> i
-        _ -> length_by
+        _ -> Keyword.get(opts, :length_by, nil)
       end
+
+    snake_case_name = snake_case(name)
 
     quote do
       packet_id = Module.get_attribute(__MODULE__, unquote(@current_packet_id))
@@ -143,10 +145,10 @@ defmodule Etiquette.Spec do
       current_packet_spec = Map.get(all_packet_specs, packet_id)
       current_packet_spec_fields = Map.get(current_packet_spec, :fields, [])
 
-      ex_name = unquote(snake_case(name))
+      ex_name = unquote(snake_case_name)
 
       new_packet_spec =
-        %{
+        %Field{
           name: unquote(name),
           ex_name: String.to_atom(ex_name),
           length: unquote(length),
@@ -161,8 +163,6 @@ defmodule Etiquette.Spec do
       new_current_packet_spec = Map.put(current_packet_spec, :fields, new_fields)
       new_all_packet_specs = Map.put(all_packet_specs, packet_id, new_current_packet_spec)
       Module.put_attribute(__MODULE__, unquote(@packet_specs), new_all_packet_specs)
-
-      current_packet_ast = Module.get_attribute(__MODULE__, unquote(@current_packet_ast))
     end
   end
 
@@ -170,76 +170,87 @@ defmodule Etiquette.Spec do
   defmacro __before_compile__(env) do
     packet_specs = Module.get_attribute(env.module, unquote(@packet_specs))
 
-    for {id, spec} <- packet_specs, into: [] do
-      is_name = :"is_#{id}?"
-      parse_name = :"parse_#{id}"
+    generated_functions =
+      for {id, spec} <- packet_specs, into: [] do
+        is_name = :"is_#{id}?"
+        parse_name = :"parse_#{id}"
 
-      fields =
-        if is_atom(spec.of) and not is_nil(spec.of) do
-          parent_spec = packet_specs[spec.of]
-          merge_parent_and_child_of(parent_spec.fields, spec.fields)
-        else
-          spec.fields
-        end
+        fields =
+          if is_atom(spec.of) and not is_nil(spec.of) do
+            parent_spec = packet_specs[spec.of]
+            merge_parent_and_child_of(parent_spec.fields, spec.fields)
+          else
+            spec.fields
+          end
 
-      spec = Map.replace(spec, :fields, fields)
+        spec = Map.replace(spec, :fields, fields)
 
-      keys_ast =
-        for key <- Enum.map(fields, fn field -> field.ex_name end) do
-          key
-        end
+        keys_ast =
+          for key <- Enum.map(fields, fn field -> field.ex_name end) do
+            key
+          end
 
-      map_ast =
-        for key <- keys_ast do
-          {key, {:bitstring, [], Elixir}}
-        end
+        map_ast =
+          for key <- keys_ast do
+            {key, {:bitstring, [], Elixir}}
+          end
 
-      quote do
-        @doc """
-        Returns whether the given packet follows the #{unquote(spec.name)} specification.
+        quote do
+          @doc """
+          Returns whether the given packet follows the #{unquote(spec.name)} specification.
 
-        #{unquote(parse_rfc_spec(spec))}
-        """
-        @spec unquote(is_name)(packet()) :: boolean()
-        def unquote(is_name)(input) when is_bitstring(input) do
-          rest = input
+          #{unquote(parse_rfc_spec(spec))}
+          """
+          @spec unquote(is_name)(packet()) :: boolean()
+          def unquote(is_name)(input) when is_bitstring(input) do
+            rest = input
 
-          unquote_splicing(parse_destructuring(fields))
+            unquote_splicing(parse_destructuring(fields))
 
-          true
-        rescue
-          MatchError -> false
-        end
+            true
+          rescue
+            MatchError -> false
+          end
 
-        def unquote(is_name)(input), do: false
+          def unquote(is_name)(input), do: false
 
-        @doc """
-        Given a #{unquote(spec.name)} packet in binary, returns the parsed arguments in a map with
-        each field.
+          @doc """
+          Given a #{unquote(spec.name)} packet in binary, returns the parsed arguments in a map with
+          each field.
 
-        #{unquote(parse_rfc_spec(spec))}
-        """
-        @spec unquote(parse_name)(packet()) :: %{unquote_splicing(map_ast)}
-        def unquote(parse_name)(input) do
-          rest = input
+          #{unquote(parse_rfc_spec(spec))}
+          """
+          @spec unquote(parse_name)(packet()) :: %{unquote_splicing(map_ast)}
+          def unquote(parse_name)(input) do
+            rest = input
 
-          unquote_splicing(parse_destructuring(fields))
+            unquote_splicing(parse_destructuring(fields))
 
-          Map.new([
-            unquote_splicing(
-              Enum.map(fields, fn field ->
-                field_name = field.ex_name
-                field_var = Macro.var(field.ex_name, __MODULE__)
+            Map.new([
+              unquote_splicing(
+                Enum.map(fields, fn field ->
+                  field_name = field.ex_name
+                  field_var = Macro.var(field.ex_name, __MODULE__)
 
-                quote do
-                  {unquote(field_name), unquote(field_var)}
-                end
-              end)
-            )
-          ])
+                  quote do
+                    {unquote(field_name), unquote(field_var)}
+                  end
+                end)
+              )
+            ])
+          end
         end
       end
-    end
+
+    [
+      quote do
+        @moduledoc """
+        Specification for
+        - #{unquote(Enum.join(Enum.map(packet_specs, fn {_, spec} -> spec.name end), "\n- "))}
+        """
+      end
+      | generated_functions
+    ]
   end
 
   @doc "A range going from minimum `num` up to the end."
@@ -289,29 +300,14 @@ defmodule Etiquette.Spec do
       field_name = Macro.var(field.ex_name, __MODULE__)
 
       case field do
-        %{length_by: lb} when is_atom(lb) and not is_nil(lb) ->
+        %Field{length_by: lb} when is_atom(lb) and not is_nil(lb) ->
+          var = Macro.var(lb, __ENV__.module)
+
           quote do
-            <<unquote(field_name)::size((unquote(Macro.var(lb, __ENV__.module)) + 1) * 8), rest::bitstring>> =
-              rest
+            <<unquote(field_name)::size((unquote(var) + 1) * 8), rest::bitstring>> = rest
           end
 
-        %{length: a..b//1, length_by: nil} when a < b or b == -1 ->
-          quote do
-            unquote(field_name) = rest
-          end
-
-        %{length_by: lb, length: l} when is_integer(lb) ->
-          quote do
-            <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
-              <<unquote(lb)::size(unquote(l)), rest::bitstring>> = rest
-          end
-
-        %{length: l} when is_integer(l) ->
-          quote do
-            <<unquote(field_name)::size(unquote(l)), rest::bitstring>> = rest
-          end
-
-        %{length_by: lb} when is_function(lb) ->
+        %Field{length_by: lb} when is_function(lb) ->
           [
             quote do
               bit_segment_size = unquote(lb).(rest)
@@ -321,13 +317,74 @@ defmodule Etiquette.Spec do
             end
           ]
 
-        %{length_by: nil, length: _l} ->
+        %Field{length_by: nil, length: a..b//1} when a < b or b == -1 ->
+          quote do
+            unquote(field_name) = rest
+          end
+
+        %Field{length_by: lb, length: l} when is_integer(lb) and not is_nil(l) ->
+          quote do
+            <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
+              <<unquote(lb)::size(unquote(l)), rest::bitstring>> = rest
+          end
+
+        %Field{length: l, length_by: nil} when is_integer(l) ->
+          quote do
+            <<unquote(field_name)::size(unquote(l)), rest::bitstring>> = rest
+          end
+
+        %Field{length_by: nil, length: _l} ->
           quote do
             <<unquote(field_name), rest::bitstring>> = rest
           end
       end
     end)
     |> List.flatten()
+  end
+
+  @spec parse_destructuring(Field.t()) :: any()
+  defp quote_field(field) do
+    field_name = Macro.var(field.ex_name, __MODULE__)
+
+    case field do
+      %Field{length_by: lb} when is_atom(lb) and not is_nil(lb) ->
+        var = Macro.var(lb, __ENV__.module)
+
+        quote do
+          <<unquote(field_name)::size((unquote(var) + 1) * 8), rest::bitstring>> = rest
+        end
+
+      %Field{length_by: lb} when is_function(lb) ->
+        [
+          quote do
+            bit_segment_size = unquote(lb).(rest)
+          end,
+          quote do
+            <<unquote(field_name)::size(bit_segment_size), rest::bitstring>> = rest
+          end
+        ]
+
+      %Field{length_by: nil, length: a..b//1} when a < b or b == -1 ->
+        quote do
+          unquote(field_name) = rest
+        end
+
+      %Field{length_by: lb, length: l} when is_integer(lb) and not is_nil(l) ->
+        quote do
+          <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
+            <<unquote(lb)::size(unquote(l)), rest::bitstring>> = rest
+        end
+
+      %Field{length: l, length_by: nil} when is_integer(l) ->
+        quote do
+          <<unquote(field_name)::size(unquote(l)), rest::bitstring>> = rest
+        end
+
+      %Field{length_by: nil, length: _l} ->
+        quote do
+          <<unquote(field_name), rest::bitstring>> = rest
+        end
+    end
   end
 
   defp parse_rfc_spec(spec) do
