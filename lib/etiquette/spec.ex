@@ -128,6 +128,7 @@ defmodule Etiquette.Spec do
   defmacro field(name, length, opts) do
     length_by = Keyword.get(opts, :length_by, nil)
     part_of = Keyword.get(opts, :part_of)
+    doc = Keyword.get(opts, :doc)
 
     length_by =
       case Keyword.get(opts, :fixed, nil) do
@@ -151,7 +152,8 @@ defmodule Etiquette.Spec do
           length: unquote(length),
           opts: unquote(opts),
           length_by: unquote(length_by),
-          part_of: unquote(part_of)
+          part_of: unquote(part_of),
+          doc: unquote(doc)
         }
 
       new_fields = current_packet_spec_fields ++ [new_packet_spec]
@@ -180,6 +182,8 @@ defmodule Etiquette.Spec do
           spec.fields
         end
 
+      spec = Map.replace(spec, :fields, fields)
+
       keys_ast =
         for key <- Enum.map(fields, fn field -> field.ex_name end) do
           key
@@ -193,6 +197,8 @@ defmodule Etiquette.Spec do
       quote do
         @doc """
         Returns whether the given packet follows the #{unquote(spec.name)} specification.
+
+        #{unquote(parse_rfc_spec(spec))}
         """
         @spec unquote(is_name)(packet()) :: boolean()
         def unquote(is_name)(input) when is_bitstring(input) do
@@ -207,6 +213,12 @@ defmodule Etiquette.Spec do
 
         def unquote(is_name)(input), do: false
 
+        @doc """
+        Given a #{unquote(spec.name)} packet in binary, returns the parsed arguments in a map with
+        each field.
+
+        #{unquote(parse_rfc_spec(spec))}
+        """
         @spec unquote(parse_name)(packet()) :: %{unquote_splicing(map_ast)}
         def unquote(parse_name)(input) do
           rest = input
@@ -316,5 +328,37 @@ defmodule Etiquette.Spec do
       end
     end)
     |> List.flatten()
+  end
+
+  defp parse_rfc_spec(spec) do
+    title = spec.name
+
+    field_docs =
+      Enum.map(spec.fields, fn field ->
+        case field do
+          %{name: name, length: length, length_by: length_by, doc: doc} ->
+            "- **#{name}**" <>
+              case length do
+                (..) -> " (..)"
+                a..-1//_ -> " (#{a}..)"
+                0..b//_ -> " (..#{b})"
+                a..b//_ -> " (#{a}..#{b})"
+                length -> " (#{length})"
+              end <>
+              case length_by do
+                value when is_integer(value) -> " = #{value}"
+                _ -> ""
+              end <>
+              case doc do
+                nil -> "\n"
+                doc -> ":\n  #{doc}\n"
+              end
+        end
+      end)
+
+    """
+    # #{title}:
+    #{field_docs}
+    """
   end
 end
