@@ -3,21 +3,21 @@ defmodule PartOfTest do
   use Etiquette.Spec
 
   packet "Packet", id: :packet do
-    field("id", 2)
-    field("type-specific field", 14, id: :type_specific_field)
-    field("payload", 8)
+    field "id", 2
+    field "type-specific field", 14, id: :type_specific_field
+    field "payload", 8
   end
 
   packet "Type 0", id: :type_0, of: :packet do
-    field("id", 2, fixed: 0)
-    field("first field", 4, part_of: :type_specific_field)
-    field("second field", 10, part_of: :type_specific_field)
+    field "id", 2, fixed: 0
+    field "first field", 4, part_of: :type_specific_field
+    field "second field", 10, part_of: :type_specific_field
   end
 
   packet "Type 1", id: :type_1, of: :packet do
-    field("id", 2, fixed: 3)
-    field("different first field", 9, part_of: :type_specific_field)
-    field("different second field", 5, part_of: :type_specific_field)
+    field "id", 2, fixed: 3
+    field "different first field", 9, part_of: :type_specific_field
+    field "different second field", 5, part_of: :type_specific_field
   end
 
   # Tests

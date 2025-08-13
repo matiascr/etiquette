@@ -3,24 +3,24 @@ defmodule SimpleOfTest do
   use Etiquette.Spec
 
   packet "Header Packet", id: :header_packet do
-    field("Header Fixed", 1, fixed: 1)
-    field("Packet Type", 2)
-    field("Type-Specific fields", ..)
+    field "Header Fixed", 1, fixed: 1
+    field "Packet Type", 2
+    field "Type-Specific fields", (..)
   end
 
   packet "Hello Packet", id: :hello_packet, of: :header_packet do
-    field("Packet Type", 2, fixed: 0b00)
-    field("Hello-specific payload", ..)
+    field "Packet Type", 2, fixed: 0b00
+    field "Hello-specific payload", (..)
   end
 
   packet "Conversation Packet", id: :conversation_packet, of: :header_packet do
-    field("Packet Type", 2, fixed: 0b01)
-    field("Conversation-specific payload", ..)
+    field "Packet Type", 2, fixed: 0b01
+    field "Conversation-specific payload", (..)
   end
 
   packet "Bye Packet", id: :bye_packet, of: :header_packet do
-    field("Packet Type", 2, fixed: 0b11)
-    field("Bye-specific payload", ..)
+    field "Packet Type", 2, fixed: 0b11
+    field "Bye-specific payload", (..)
   end
 
   # Tests
