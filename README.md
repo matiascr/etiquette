@@ -46,10 +46,10 @@ Now we have a specification such that:
     true
 
 
-## TODO
+## Roadmap
 
-- [ ] Generate pretty markdown documentation from the spec module
-- [ ] Generate pretty markdown documentation for each function
+- [x] Generate pretty markdown documentation from the spec module
+- [x] Generate pretty markdown documentation for each function
 - [x] Generate complete typespecs in functions for easier use
 - [ ] Implement `generate_x_packet(field1, field2, ...) :: <<...>>`
 - [x] Implement `parse_x_packet(<<>>) :: %{field1: ..., field2: ..., ...}`
