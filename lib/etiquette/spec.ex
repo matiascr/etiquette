@@ -127,7 +127,7 @@ defmodule Etiquette.Spec do
     recommended to add an ID to the field in the parent packet spec, and then add the same ID to the
     same field in the child spec.
   """
-  defmacro field(name, length, opts) do
+  defmacro field(name, length, opts \\ []) do
     # TODO: Options validations
     part_of = Keyword.get(opts, :part_of)
     doc = Keyword.get(opts, :doc)
