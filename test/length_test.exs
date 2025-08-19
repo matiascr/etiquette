@@ -3,9 +3,9 @@ defmodule LengthTest do
   use Etiquette.Spec
 
   packet "Pack", id: :pack do
-    field "Type", 2, doc: ""
-    field "Length", 2, id: :length, doc: ""
-    field "Data", (..), length_by: :length, doc: ""
+    field "Type", 2
+    field "Length", 2, id: :length
+    field "Data", (..), length_by: :length
   end
 
   # Tests

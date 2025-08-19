@@ -43,16 +43,21 @@ defmodule Etiquette.Spec do
   The packet contents themselves are declared inside a `do` block containing `field`s. For more
   information, see [`field`](#field/3)
   """
-  defmacro packet(name, args, do: block) do
+  defmacro packet(name, args \\ [], do: block) do
     id =
       Keyword.get(args, :id) ||
         raise ArgumentError,
           message:
             "No identifier was provided to the #{name} packet specification. Declare an `:id` before the `do` block."
 
-    quote do
-      Module.put_attribute(__MODULE__, unquote(@current_packet_id), unquote(id))
+    if not is_atom(id), do: raise(ArgumentError, "The ID provided to a packet declaration must be an atom.")
 
+    quote do
+      # Add ID and AST
+      Module.put_attribute(__MODULE__, unquote(@current_packet_id), unquote(id))
+      Module.put_attribute(__MODULE__, unquote(@current_packet_ast), [])
+
+      # Create empty spec
       Module.put_attribute(
         __MODULE__,
         unquote(@packet_specs),
@@ -66,18 +71,24 @@ defmodule Etiquette.Spec do
         })
       )
 
-      Module.put_attribute(__MODULE__, unquote(@current_packet_ast), [])
-
       unquote(block)
 
+      # Update specs with AST and ID
       function_body_ast = Module.get_attribute(__MODULE__, unquote(@current_packet_ast))
       all_specs = Module.get_attribute(__MODULE__, unquote(@packet_specs))
       current_spec = all_specs[unquote(id)]
+
+      if current_spec.fields == [] do
+        raise ArgumentError,
+              "To declare a packet specification, it needs to have one or multiple field/3 declarations as part of it."
+      end
+
       new_spec = Map.put(current_spec, unquote(@function_body_ast), function_body_ast)
 
       new_specs = Map.put(all_specs, unquote(id), new_spec)
       Module.put_attribute(__MODULE__, unquote(@packet_specs), new_specs)
 
+      # Delete ID and AST
       Module.delete_attribute(__MODULE__, unquote(@current_packet_id))
       Module.delete_attribute(__MODULE__, unquote(@current_packet_ast))
     end
@@ -146,7 +157,9 @@ defmodule Etiquette.Spec do
     snake_case_name = snake_case(name)
 
     quote do
-      packet_id = Module.get_attribute(__MODULE__, unquote(@current_packet_id))
+      packet_id =
+        Module.get_attribute(__MODULE__, unquote(@current_packet_id)) ||
+          raise ArgumentError, "To use field/3, it has to be used inside the `do` block of a packet/3 call."
 
       all_packet_specs = Module.get_attribute(__MODULE__, unquote(@packet_specs))
       current_packet_spec = Map.get(all_packet_specs, packet_id)
