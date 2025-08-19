@@ -141,7 +141,6 @@ defmodule Etiquette.Spec do
   defmacro field(name, length, opts \\ []) do
     # TODO: Options validations
     part_of = Keyword.get(opts, :part_of)
-    doc = Keyword.get(opts, :doc)
 
     fixed_value = Keyword.get(opts, :fixed, nil)
 
@@ -156,6 +155,9 @@ defmodule Etiquette.Spec do
     quote do
       length_by_variable = if is_atom(unquote(length_by)), do: unquote(length_by)
       length_by_function = if is_function(unquote(length_by)), do: unquote(length_by)
+
+      Module.register_attribute(__MODULE__, :fdoc, accumulate: false, persist: false)
+
       packet_id =
         Module.get_attribute(__MODULE__, unquote(@current_packet_id)) ||
           raise ArgumentError, "To use field/3, it has to be used inside the `do` block of a packet/3 call."
@@ -173,7 +175,7 @@ defmodule Etiquette.Spec do
           length: unquote(length),
           opts: unquote(opts),
           part_of: unquote(part_of),
-          doc: unquote(doc)
+          doc: unquote(Keyword.get(opts, :doc)) || @fdoc || nil
         }
 
       new_packet_spec =
@@ -194,6 +196,7 @@ defmodule Etiquette.Spec do
       new_current_packet_spec = Map.put(current_packet_spec, :fields, new_fields)
       new_all_packet_specs = Map.put(all_packet_specs, packet_id, new_current_packet_spec)
       Module.put_attribute(__MODULE__, unquote(@packet_specs), new_all_packet_specs)
+      Module.delete_attribute(__MODULE__, :fdoc)
     end
   end
 
