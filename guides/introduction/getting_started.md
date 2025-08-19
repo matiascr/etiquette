@@ -1,12 +1,13 @@
 # Getting started
 
-This guide is an introduction to the [`Etiquette`](Etiquette.html) library and, more specifically,
-to how to use the [`Etiquette.Spec`](Etiquette.Spec.html) module to create packet specifications.
+This guide is an introduction to the [`Etiquette`](Etiquette.html) library and,
+more specifically, to how to use the [`Etiquette.Spec`](Etiquette.Spec.html)
+module to create packet specifications.
 
 ## Adding Etiquette to a project
 
-Adding [`Etiquette`](Etiquette.html) as a dependency is very straightforward. Simply add`:etiquette`
-to the `mix.exs` file in your project.
+Adding [`Etiquette`](Etiquette.html) as a dependency is very straightforward.
+Simply add`:etiquette` to the `mix.exs` file in your project.
 
 ```elixir
 defp deps do
@@ -20,11 +21,10 @@ Next, install the dependencies by running
 
 ```
 mix deps.get
-
 ```
 
-After that, to use the formatter rules of the library, add the following to the `.formatter.exs`
-file in your project:
+After that, to use the formatter rules of the library, add the following to the
+`.formatter.exs` file in your project:
 
 ```
 [
@@ -36,7 +36,8 @@ file in your project:
 ]
 ```
 
-With all that done, now all it takes to use the [`Etiquette.Spec`](Etiquette.Spec.html) is to use 
+With all that done, now all it takes to use the
+[`Etiquette.Spec`](Etiquette.Spec.html) is to use
 [`Etiquette.Spec`](Etiquette.Spec.html) in a module:
 
 ```elixir
@@ -50,5 +51,5 @@ defmodule PacketSpec do
 end
 ```
 
-To learn about all the possibilities provided by [`Etiquette.Spec`](Etiquette.Spec.html), keep
-reading the guides that follow.
+To learn about all the possibilities provided by
+[`Etiquette.Spec`](Etiquette.Spec.html), keep reading the guides that follow.

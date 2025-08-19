@@ -45,7 +45,6 @@ Now we have a specification such that:
     iex> Example.Spec.is_bye_packet?(<<1::1, 0b11::2, "rest">>)
     true
 
-
 ## Roadmap
 
 - [x] Generate pretty markdown documentation from the spec module
@@ -53,6 +52,8 @@ Now we have a specification such that:
 - [x] Generate complete typespecs in functions for easier use
 - [ ] Implement `generate_x_packet(field1, field2, ...) :: <<...>>`
 - [x] Implement `parse_x_packet(<<>>) :: %{field1: ..., field2: ..., ...}`
-- [ ] Improve inheritance between packet specs (for using the same header, for fixing values of previously defined fields, etc...)
-    TODO: Add more tests to cover corner cases of inheritance (order changes, last field injection, validation of lengths).
+- [ ] Improve inheritance between packet specs (for using the same header, for
+      fixing values of previously defined fields, etc...) TODO: Add more tests
+      to cover corner cases of inheritance (order changes, last field injection,
+      validation of lengths).
 - [ ] Add sigils for concise specs?

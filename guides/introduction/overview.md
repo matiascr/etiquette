@@ -1,8 +1,8 @@
 # Overview
 
-Etiquette is a library for creating packet specifications. The usage of packets is standard across
-most network communications but it can have other uses and be a good way to efficiently store data
-and move it around.
+Etiquette is a library for creating packet specifications. The usage of packets
+is standard across most network communications but it can have other uses and be
+a good way to efficiently store data and move it around.
 
 Let's take a simple packet specification. The UDP header format:
 
@@ -33,8 +33,10 @@ Let's take a simple packet specification. The UDP header format:
   </tr>
 </table>
 
-From this specification we can gather that the packet has four fields, each a fixed length of two
-bytes. Using [`Etiquette.Spec`](Etiquette.Spec.html), we can create the specification as follows:
+From this specification we can gather that the packet has five fields, the first
+with a fixed length of two bytes and the last with an indefinite length. Using
+[`Etiquette.Spec`](Etiquette.Spec.html), we can create the specification as
+follows:
 
 ```elixir
 defmodule UDPSpec do
@@ -50,13 +52,19 @@ defmodule UDPSpec do
 end
 ```
 
-Using the information provided, [`Etiquette.Spec`](Etiquette.Spec.html) will generate the following:
-- `UDPSpec.is_udp_header?/1`: Will return `true` if the binary data conforms to the specification.
-- `UDPSpec.parse_udp_header/1`: Will parse the binary data into a map with the fields names as keys
-  and the values as the parsed data according to the spec.
-- `UDPSpec.create_udp_header/5`: (TODO) Will create the binary from the given arguments. Depending on the
-  spec, the function will have a different number of arguments, one for each field.
+Using the information provided, [`Etiquette.Spec`](Etiquette.Spec.html) will
+generate the following:
 
-Above we used a very simple example. To define more complex specifications, there are more arguments
-and options for [`packet`](Etiquette.Spec.html#packet/3) and [`field`](Etiquette.Spec.html#field/3).
-Continue reading the guides to learn how to use the to your advantage.
+- `UDPSpec.is_udp_header?/1`: Will return `true` if the binary data conforms to
+  the specification.
+- `UDPSpec.parse_udp_header/1`: Will parse the binary data into a map with the
+  fields names as keys and the values as the parsed data according to the spec.
+- `UDPSpec.create_udp_header/5`: (TODO) Will create the binary from the given
+  arguments. Depending on the spec, the function will have a different number of
+  arguments, one for each field.
+
+Above we used a very simple example. To define more complex specifications,
+there are more arguments and options for
+[`packet`](Etiquette.Spec.html#packet/3) and
+[`field`](Etiquette.Spec.html#field/3). Continue reading the guides to learn how
+to use the to your advantage.
