@@ -151,12 +151,11 @@ defmodule Etiquette.Spec do
         _ -> Keyword.get(opts, :length_by, nil)
       end
 
-    length_by_variable = if is_atom(length_by), do: length_by
-    length_by_function = if is_function(length_by), do: length_by
-
     snake_case_name = snake_case(name)
 
     quote do
+      length_by_variable = if is_atom(unquote(length_by)), do: unquote(length_by)
+      length_by_function = if is_function(unquote(length_by)), do: unquote(length_by)
       packet_id =
         Module.get_attribute(__MODULE__, unquote(@current_packet_id)) ||
           raise ArgumentError, "To use field/3, it has to be used inside the `do` block of a packet/3 call."
@@ -181,14 +180,14 @@ defmodule Etiquette.Spec do
         if is_nil(unquote(fixed_value)), do: new_packet_spec, else: %{new_packet_spec | fixed_value: unquote(fixed_value)}
 
       new_packet_spec =
-        if is_nil(unquote(length_by_variable)),
+        if is_nil(length_by_variable),
           do: new_packet_spec,
-          else: %{new_packet_spec | length_by_variable: unquote(length_by_variable)}
+          else: %{new_packet_spec | length_by_variable: length_by_variable}
 
       new_packet_spec =
-        if is_nil(unquote(length_by_function)),
+        if is_nil(length_by_function),
           do: new_packet_spec,
-          else: %{new_packet_spec | length_by_function: unquote(length_by_function)}
+          else: %{new_packet_spec | length_by_function: length_by_function}
 
       new_fields = current_packet_spec_fields ++ [new_packet_spec]
 
@@ -340,13 +339,6 @@ defmodule Etiquette.Spec do
     field_name = Macro.var(field.ex_name, __MODULE__)
 
     case field do
-      %Field{length_by_variable: lb} when is_atom(lb) and not is_nil(lb) ->
-        var = Macro.var(lb, __ENV__.module)
-
-        quote do
-          <<unquote(field_name)::size((unquote(var) + 1) * 8), rest::bitstring>> = rest
-        end
-
       %Field{length_by_function: lb} when is_function(lb) ->
         [
           quote do
@@ -356,6 +348,14 @@ defmodule Etiquette.Spec do
             <<unquote(field_name)::size(bit_segment_size), rest::bitstring>> = rest
           end
         ]
+
+      %Field{length_by_variable: lb} when is_atom(lb) and not is_nil(lb) ->
+        # TODO: take into account if variable has been defined using function or if it's raw value
+        var = Macro.var(lb, __ENV__.module)
+
+        quote do
+          <<unquote(field_name)::size((unquote(var) + 1) * 8), rest::bitstring>> = rest
+        end
 
       %Field{length: a..b//1} when a < b or b == -1 ->
         quote do
