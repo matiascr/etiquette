@@ -1,6 +1,13 @@
 # Etiquette
 
-Library for creating and following protocol.
+<a href="https://hex.pm/packages/etiquette"><img alt="Hex Version" src="https://img.shields.io/hexpm/v/etiquette"></a>
+<a href="https://hexdocs.pm/etiquette"><img alt="Hex Docs" src="http://img.shields.io/badge/hex.pm-docs-green.svg?style=flat"></a>
+
+<br>
+
+A new way of creating and following a protocol
+
+## Summary
 
 Following the example:
 
@@ -33,17 +40,19 @@ end
 
 Now we have a specification such that:
 
-    iex> Example.Spec.is_header_packet?(<<1::1, "A random string inside 30 bytes"::30>>)
-    true
+```elixir
+iex> Example.Spec.is_header_packet?(<<1::1, "A random string inside 30 bytes"::30>>)
+true
 
-    iex> Example.Spec.is_hello_packet?(<<1::1, 0b00::2, "rest">>)
-    true
+iex> Example.Spec.is_hello_packet?(<<1::1, 0b00::2, "rest">>)
+true
 
-    iex> Example.Spec.is_hello_packet?(<<1::1, 0b10::2, "rest">>)
-    false
+iex> Example.Spec.is_hello_packet?(<<1::1, 0b10::2, "rest">>)
+false
 
-    iex> Example.Spec.is_bye_packet?(<<1::1, 0b11::2, "rest">>)
-    true
+iex> Example.Spec.is_bye_packet?(<<1::1, 0b11::2, "rest">>)
+true
+```
 
 ## Roadmap
 
