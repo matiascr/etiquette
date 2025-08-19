@@ -29,7 +29,7 @@ defmodule PartOfTest do
     refute is_type_0?(packet)
     refute is_type_1?(packet)
 
-    parsed_packet = parse_packet(packet)
+    {parsed_packet, _} = parse_packet(packet)
 
     assert parsed_packet == %{
              id: 1,
@@ -45,7 +45,7 @@ defmodule PartOfTest do
     assert is_type_0?(type_0_packet)
     refute is_type_1?(type_0_packet)
 
-    parsed_packet = parse_type_0(type_0_packet)
+    {parsed_packet, _} = parse_type_0(type_0_packet)
 
     assert parsed_packet == %{
              id: 0,
@@ -62,7 +62,7 @@ defmodule PartOfTest do
     refute is_type_0?(type_1_packet)
     assert is_type_1?(type_1_packet)
 
-    parsed_packet = parse_type_1(type_1_packet)
+    {parsed_packet, _} = parse_type_1(type_1_packet)
 
     assert parsed_packet == %{
              id: 3,
