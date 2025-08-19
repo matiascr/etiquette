@@ -239,26 +239,27 @@ defmodule Etiquette.Spec do
 
           #{unquote(parse_rfc_spec(spec))}
           """
-          @spec unquote(parse_name)(packet()) :: %{unquote_splicing(map_ast)}
+          @spec unquote(parse_name)(packet()) :: {%{unquote_splicing(map_ast)}, packet()}
           def unquote(parse_name)(input) do
             rest = input
 
             unquote_splicing(parse_destructuring(fields))
 
-            [
-              unquote_splicing(
-                Enum.map(fields, fn field ->
-                  field_name = field.ex_name
-                  field_var = Macro.var(field.ex_name, __MODULE__)
+            parsed_packet =
+              Map.new([
+                unquote_splicing(
+                  Enum.map(fields, fn field ->
+                    field_name = field.ex_name
+                    field_var = Macro.var(field.ex_name, __MODULE__)
 
-                  quote do
-                    {unquote(field_name), unquote(field_var)}
-                  end
-                end)
-              )
-            ]
-            |> Map.new()
-            |> then(&if rest == "", do: &1, else: Map.put_new(&1, :rest, rest))
+                    quote do
+                      {unquote(field_name), unquote(field_var)}
+                    end
+                  end)
+                )
+              ])
+
+            {parsed_packet, rest}
           end
         end
       end
