@@ -2,7 +2,12 @@ defmodule Etiquette.Spec do
   @moduledoc """
   To use the Etiquette library to import all the things required to create packet specifications.
   """
+
+  import Bitwise, only: [<<<: 2]
+
   alias Etiquette.Field
+
+  defguard is_range(range) when is_struct(range, Range)
 
   @current_packet_id :current_packet_id
   @current_packet_ast :current_packet_ast
@@ -33,10 +38,13 @@ defmodule Etiquette.Spec do
   @doc """
   Declares a packet specification. A packet specification is composed of a sequence of [`field`](#field/3)s.
 
-  Other arguments are also available:
+  The available arguments are:
+
   - `name`: Mandatory field. A string with the name of the field.
+
   - `id`: An atom used to take care of references. When another packet uses the `of` argument, the
     id is what will be used for reference.
+
   - `of`: Declares that a packet follows a previously declared packet specification. The specs have
     to be declared in the same file. This argument needs to be present when using `part_of`.
 
@@ -44,11 +52,16 @@ defmodule Etiquette.Spec do
   information, see [`field`](#field/3)
   """
   defmacro packet(name, args \\ [], do: block) do
+    env = __CALLER__
+
     id =
       Keyword.get(args, :id) ||
-        raise ArgumentError,
-          message:
-            "No identifier was provided to the #{name} packet specification. Declare an `:id` before the `do` block."
+        raise CompileError,
+          file: env.file,
+          line: env.line,
+          description: """
+          No identifier was provided to the #{name} packet specification. Declare an `:id` before the `do` block.
+          """
 
     if not is_atom(id), do: raise(ArgumentError, "The ID provided to a packet declaration must be an atom.")
 
@@ -67,7 +80,9 @@ defmodule Etiquette.Spec do
           fields: [],
           id: unquote(id),
           name: unquote(name),
-          of: unquote(Keyword.get(args, :of))
+          of: unquote(Keyword.get(args, :of)),
+          file: unquote(env.file),
+          line: unquote(env.line)
         })
       )
 
@@ -79,8 +94,12 @@ defmodule Etiquette.Spec do
       current_spec = all_specs[unquote(id)]
 
       if current_spec.fields == [] do
-        raise ArgumentError,
-              "To declare a packet specification, it needs to have one or multiple field/3 declarations as part of it."
+        raise CompileError,
+          file: current_spec.file,
+          line: current_spec.line,
+          description: """
+          To declare a packet specification, it needs to have one or multiple field/3 declarations as part of it.
+          """
       end
 
       new_spec = Map.put(current_spec, unquote(@function_body_ast), function_body_ast)
@@ -96,10 +115,19 @@ defmodule Etiquette.Spec do
 
   @doc """
   Defines the structure of a packet field. A packet field is a specific section of the packet. Must
-  be inside the `do` block of a [`packet`](#packet/3).
+  be inside the `do` block of a [`packet`](#packet/3). For example:
+
+  ```elixir
+  packet "Packet spec", id: :spec do
+    field "First field", 4
+    field "Second field", 4
+  end
+  ```
 
   Mandatory arguments to be provided are:
+
   - `name`: The full name of the field.
+
   - `length`: The length of the field. Can be an `int` or a `Range`. An `int` will be interpreted as
   the field having a fixed length. A `Range` can be provided as a way to limit and validate the size
   of the field at runtime. It can take the form of a normal range (i. e. `(8..256)`) or a full range
@@ -107,12 +135,48 @@ defmodule Etiquette.Spec do
   only have upper or lower limits.
 
   The list of optional arguments is:
-  - `doc`: Provides full documentation on the field. This documentation will be used to document the
-    whole module that is using `Etiquette.Spec`.
+
   - `fixed`: If a field is fixed to a specific value. Useful when specifying variants of a packet
-    type, so it's possible, for instance, to declare in the spec that a field has to have a certain
-    value for the packet to be considered a certain type. Think of how headers usually have a field
-    that is used to specify the packet type.
+    type. Using this, it's possible, for instance, to declare in the spec that a field has to have a
+    certain value for the packet to be considered a certain type. Think of how headers usually have a
+    field that is used to specify the packet type depending on it's value. Setting this option is
+    most relevant to determine the result of the `is_header?/1` function that would be generated
+    following the example above.
+
+    ## Example
+    ```elixir
+    iex> defmodule Spec do
+    ...>   use Etiquette.Spec
+    ...>   packet "Header", id: :header do
+    ...>     field "Type", 2
+    ...>     field "Data", (..)
+    ...>   end
+    ...>   packet "Type 0", id: :type_0, of: :header do
+    ...>     field "Type", 2, fixed: 0b00
+    ...>     field "Data", (..)
+    ...>   end
+    ...>   packet "Type 1", id: :type_1, of: :header do
+    ...>     field "Type", 2, fixed: 0b01
+    ...>     field "Data", (..)
+    ...>   end
+    ...> end
+    iex> packet_0 = <<0b00::2, "this is data">>
+    iex> packet_1 = <<0b01::2, "this is data">>
+    iex> Spec.is_header?(packet_0)
+    true
+    iex> Spec.is_header?(packet_1)
+    true
+    iex> Spec.is_type_0?(packet_0)
+    true
+    iex> Spec.is_type_1?(packet_0)
+    false
+    iex> Spec.is_type_0?(packet_1)
+    false
+    iex> Spec.is_type_1?(packet_1)
+    true
+    ```
+    See the tests and section [Validating Packet Formats](../../guides/how_tos/validating_packet_formats.md) for more examples.
+
   - `length_by`: Used to indicate that the length of the field is not fixed and declared through
     other means. The following are supported:
     - An **atom**: An atom can be used to use for reference. It will be interpreted that
@@ -122,6 +186,7 @@ defmodule Etiquette.Spec do
       `length_by: &Module.calc_function/1` will mean that the result of passing the value of the
       packet (starting from the position of the bits of that field, not the whole packet) to that
       function, will return a positive integer that will be used as the length of the field.
+
   - `part_of`: Used to declare that a specific field of a parent packet specification is subdivided
     into smaller fields. For example, a packet payload of a generic packet spec, can be divided into
     well-defined fields inside type-specific packet specs. `part_of: :field_id` will be interpreted as
@@ -130,6 +195,7 @@ defmodule Etiquette.Spec do
     the position of the field with `id: :field_id`, and so respect the order of the parent field.
     This also means that the size of the parent field will have to be coherent with the size of the
     children fields.
+
   - `id`: Must be an atom. An id will be required if another field references this one with
     `length_by` or `part_of`. It can also be used to specify the name that you want to be
     used/returned by the generated functions.
@@ -137,65 +203,171 @@ defmodule Etiquette.Spec do
     this when declaring a fixed value in a child spec, for example. In this case, it would be
     recommended to add an ID to the field in the parent packet spec, and then add the same ID to the
     same field in the child spec.
-  """
-  defmacro field(name, length, opts \\ []) do
-    # TODO: Options validations
-    part_of = Keyword.get(opts, :part_of)
 
+  - `doc`: Provides full documentation on the field. This documentation will be used to document the
+    whole module that is using `Etiquette.Spec`. Alternatively, use `@fdoc` to document a field
+    before the declaration. For example:
+    ```elixir
+    packet "Header", id: :header do
+      field "Type", 2, doc: "Determines the packet type"
+      # is equivalent to
+      @fdoc "Determines the packet type"
+      field "Type", 2
+      ...
+    end
+    ```
+  """
+  @spec field(String.t(), pos_integer() | Range.t(), keyword()) :: Macro.t()
+  defmacro field(name, length, opts \\ []) do
+    {length, _bindings} = Code.eval_quoted(length, [], __CALLER__)
+    {opts, _bindings} = Code.eval_quoted(opts, [], __CALLER__)
+    if not is_binary(name), do: raise(ArgumentError, "`name` must be a string.")
+
+    __field__(__CALLER__, name, length, opts)
+  end
+
+  defp __field__(env, name, length, opts) when is_integer(length) do
+    validate_fixed_length_field(env, length, opts)
+
+    id = Keyword.get(opts, :id)
+
+    part_of = Keyword.get(opts, :part_of)
     fixed_value = Keyword.get(opts, :fixed, nil)
 
-    length_by =
-      case Keyword.get(opts, :fixed, nil) do
-        i when is_integer(i) -> i
-        _ -> Keyword.get(opts, :length_by, nil)
-      end
+    cond do
+      is_integer(fixed_value) ->
+        if not fits_unsigned?(fixed_value, length) do
+          raise ArgumentError, """
+          Fixed value #{fixed_value} won't fit in the given length #{inspect(length)}.
+          The highest value you can fit in #{inspect(length)} #{if length == 1, do: "bit", else: "bits"} is #{2 ** length - 1} / 0x#{Integer.to_string(2 ** length - 1, 16)}.
+          """
+        end
+
+      not is_nil(fixed_value) ->
+        raise ArgumentError, "`fixed_value` has to be an non-negative integer."
+
+      true ->
+        :noop
+    end
 
     snake_case_name = snake_case(name)
 
-    quote do
-      length_by_variable = if is_atom(unquote(length_by)), do: unquote(length_by)
-      length_by_function = if is_function(unquote(length_by)), do: unquote(length_by)
-
+    quote bind_quoted: [
+            file: env.file,
+            line: env.line,
+            current_packet_id: @current_packet_id,
+            snake_case_name: snake_case_name,
+            packet_specs: @packet_specs,
+            part_of: part_of,
+            name: name,
+            id: id,
+            length: length,
+            fixed_value: fixed_value,
+            doc: Keyword.get(opts, :doc)
+          ] do
       Module.register_attribute(__MODULE__, :fdoc, accumulate: false, persist: false)
 
       packet_id =
-        Module.get_attribute(__MODULE__, unquote(@current_packet_id)) ||
-          raise ArgumentError, "To use field/3, it has to be used inside the `do` block of a packet/3 call."
+        Module.get_attribute(__MODULE__, current_packet_id) ||
+          raise CompileError,
+            file: file,
+            line: line,
+            description: "To use field/3, it has to be used inside the `do` block of a packet/3 call."
 
-      all_packet_specs = Module.get_attribute(__MODULE__, unquote(@packet_specs))
+      all_packet_specs = Module.get_attribute(__MODULE__, packet_specs)
       current_packet_spec = Map.get(all_packet_specs, packet_id)
       current_packet_spec_fields = Map.get(current_packet_spec, :fields, [])
 
-      ex_name = unquote(snake_case_name)
+      ex_name = snake_case_name
 
       new_packet_spec =
         %Field{
-          name: unquote(name),
-          ex_name: String.to_atom(ex_name),
-          length: unquote(length),
-          opts: unquote(opts),
-          part_of: unquote(part_of),
-          doc: unquote(Keyword.get(opts, :doc)) || @fdoc || nil
+          name: name,
+          ex_name: id || String.to_atom(ex_name),
+          length: length,
+          part_of: part_of,
+          doc: doc || @fdoc || nil,
+          file: file,
+          line: line
         }
 
       new_packet_spec =
-        if is_nil(unquote(fixed_value)), do: new_packet_spec, else: %{new_packet_spec | fixed_value: unquote(fixed_value)}
-
-      new_packet_spec =
-        if is_nil(length_by_variable),
-          do: new_packet_spec,
-          else: %{new_packet_spec | length_by_variable: length_by_variable}
-
-      new_packet_spec =
-        if is_nil(length_by_function),
-          do: new_packet_spec,
-          else: %{new_packet_spec | length_by_function: length_by_function}
+        if is_nil(fixed_value), do: new_packet_spec, else: %{new_packet_spec | fixed_value: fixed_value}
 
       new_fields = current_packet_spec_fields ++ [new_packet_spec]
 
       new_current_packet_spec = Map.put(current_packet_spec, :fields, new_fields)
       new_all_packet_specs = Map.put(all_packet_specs, packet_id, new_current_packet_spec)
-      Module.put_attribute(__MODULE__, unquote(@packet_specs), new_all_packet_specs)
+      Module.put_attribute(__MODULE__, packet_specs, new_all_packet_specs)
+      Module.delete_attribute(__MODULE__, :fdoc)
+    end
+  end
+
+  defp __field__(env, name, length, opts) when is_range(length) do
+    validate_range_length_field(env, length, opts)
+
+    first..last//step = length
+
+    id = Keyword.get(opts, :id)
+
+    part_of = Keyword.get(opts, :part_of)
+    length_by = Keyword.get(opts, :length_by, nil)
+
+    snake_case_name = snake_case(name)
+
+    quote bind_quoted: [
+            file: env.file,
+            line: env.line,
+            current_packet_id: @current_packet_id,
+            snake_case_name: snake_case_name,
+            packet_specs: @packet_specs,
+            part_of: part_of,
+            name: name,
+            id: id,
+            first: first,
+            last: last,
+            step: step,
+            length_by: length_by,
+            doc: Keyword.get(opts, :doc)
+          ] do
+      Module.register_attribute(__MODULE__, :fdoc, accumulate: false, persist: false)
+
+      packet_id =
+        Module.get_attribute(__MODULE__, current_packet_id) ||
+          raise CompileError,
+            file: file,
+            line: line,
+            description: "To use field/3, it has to be used inside the `do` block of a packet/3 call."
+
+      all_packet_specs = Module.get_attribute(__MODULE__, packet_specs)
+      current_packet_spec = Map.get(all_packet_specs, packet_id)
+      current_packet_spec_fields = Map.get(current_packet_spec, :fields, [])
+
+      ex_name = snake_case_name
+
+      new_packet_spec =
+        %Field{
+          name: name,
+          ex_name: id || String.to_atom(ex_name),
+          length: first..last//step,
+          part_of: part_of,
+          doc: doc || @fdoc || nil,
+          file: file,
+          line: line
+        }
+
+      new_packet_spec =
+        case length_by do
+          lb when not is_nil(lb) and is_atom(lb) -> %{new_packet_spec | length_by_variable: lb}
+          lb when not is_nil(lb) and is_function(lb) -> %{new_packet_spec | length_by_function: lb}
+          _ -> new_packet_spec
+        end
+
+      new_fields = current_packet_spec_fields ++ [new_packet_spec]
+
+      new_current_packet_spec = Map.put(current_packet_spec, :fields, new_fields)
+      new_all_packet_specs = Map.put(all_packet_specs, packet_id, new_current_packet_spec)
+      Module.put_attribute(__MODULE__, packet_specs, new_all_packet_specs)
       Module.delete_attribute(__MODULE__, :fdoc)
     end
   end
@@ -283,7 +455,7 @@ defmodule Etiquette.Spec do
       quote do
         @moduledoc """
         Specification for
-        - #{unquote(Enum.join(Enum.map(packet_specs, fn {_, spec} -> spec.name end), "\n- "))}
+        - #{unquote(Enum.join(Enum.map(packet_specs, fn {_, spec} -> spec.name end), "- "))}
         """
       end
       | generated_functions
@@ -332,14 +504,44 @@ defmodule Etiquette.Spec do
   end
 
   defp parse_destructuring(fields) do
+    all_fields = Enum.map(fields, fn field -> field.ex_name end)
+
+    Enum.each(fields, fn field ->
+      case field do
+        %Field{length_by_variable: var, file: file, line: line} when is_atom(var) and not is_nil(var) ->
+          if var not in all_fields do
+            raise CompileError,
+              file: file,
+              line: line,
+              description: """
+              Field \"#{field.name}\" references a field (\"#{var}\" or \:#{var}) that does not
+              exist.
+
+              Make sure that a field
+
+                  field \"#{var}\", _
+              or
+                  field _, _, id: :#{var}
+                  
+              exists in the packet specification. Keep in mind that the `:id` option will override
+              the name and the `id` is what has to be referenced.
+              """
+          end
+
+        _ ->
+          :ok
+      end
+    end)
+
+    validate_field_order(fields)
+
     fields
     |> Enum.map(&quote_field/1)
     |> List.flatten()
   end
 
-  @spec parse_destructuring(Field.t()) :: any()
-  defp quote_field(field) do
-    field_name = Macro.var(field.ex_name, __MODULE__)
+  defp quote_field(%Field{ex_name: ex_name} = field) do
+    field_name = Macro.var(ex_name, __MODULE__)
 
     case field do
       %Field{length_by_function: lb} when is_function(lb) ->
@@ -360,25 +562,20 @@ defmodule Etiquette.Spec do
           <<unquote(field_name)::size((unquote(var) + 1) * 8), rest::bitstring>> = rest
         end
 
-      %Field{length: a..b//1} when a < b or b == -1 ->
-        quote do
-          unquote(field_name) = rest
-        end
-
-      %Field{fixed_value: fv, length: l} when is_integer(fv) and not is_nil(l) ->
+      %Field{fixed_value: fv, length: l} when is_integer(fv) and is_integer(l) ->
         quote do
           <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
             <<unquote(fv)::size(unquote(l)), rest::bitstring>> = rest
         end
 
+      %Field{length: length} when is_range(length) ->
+        quote do
+          unquote(field_name) = rest
+        end
+
       %Field{length: l} when is_integer(l) ->
         quote do
           <<unquote(field_name)::size(unquote(l)), rest::bitstring>> = rest
-        end
-
-      %Field{length: _l} ->
-        quote do
-          <<unquote(field_name), rest::bitstring>> = rest
         end
     end
   end
@@ -404,7 +601,7 @@ defmodule Etiquette.Spec do
               end <>
               case doc do
                 nil -> "\n"
-                doc -> ":\n  #{doc}\n"
+                doc -> ":\n  #{doc}\n\n"
               end
         end
       end)
@@ -413,5 +610,62 @@ defmodule Etiquette.Spec do
     # #{title}:
     #{field_docs}
     """
+  end
+
+  defp fits_unsigned?(n, bits) when is_integer(n) and is_integer(bits) and bits > 0 do
+    n >= 0 and n < 1 <<< bits
+  end
+
+  defp validate_fixed_length_field(env, length, opts) when is_integer(length) do
+    if not (length > 0) do
+      raise CompileError,
+        file: env.file,
+        line: env.line,
+        description: "`length` must be a positive integer or an ascending range, got #{inspect(length)}."
+    end
+
+    if :length_by in Keyword.keys(opts) do
+      raise CompileError,
+        file: env.file,
+        line: env.line,
+        description: "`length_by` use is redundant. It is meant to be used when using a `Range` as the length."
+    end
+  end
+
+  defp validate_range_length_field(env, a..b//c = length, opts) do
+    if not ((a < b or (a >= 0 and b == -1)) and c == 1) do
+      raise CompileError,
+        file: env.file,
+        line: env.line,
+        description: "`length` must be a positive integer or an ascending range, got #{inspect(length)}."
+    end
+
+    opts = Keyword.keys(opts)
+
+    if :fixed in opts and :length_by in opts do
+      raise CompileError,
+        file: env.file,
+        line: env.line,
+        description: "Using `fixed` option together with `length_by` is not allowed."
+    end
+
+  end
+
+  defp validate_field_order(fields) when length(fields) != 0 do
+    List.foldl(fields, [], fn %Field{ex_name: ex_name, length_by_variable: variable, name: name, file: file, line: line},
+                              acc ->
+      if not is_nil(variable) and variable not in acc do
+        raise CompileError,
+          file: file,
+          line: line,
+          description: """
+          Expected field with id "#{variable}" to be declared before field #{name}
+          """
+      end
+
+      [ex_name | acc]
+    end)
+
+    true
   end
 end

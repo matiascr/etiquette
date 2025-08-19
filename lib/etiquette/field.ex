@@ -10,7 +10,9 @@ defmodule Etiquette.Field do
           fixed_value: atom(),
           opts: keyword(),
           part_of: atom(),
-          doc: String.t()
+          doc: String.t(),
+          file: any(),
+          line: pos_integer()
         }
   @enforce_keys [:name, :ex_name]
   defstruct [
@@ -22,6 +24,8 @@ defmodule Etiquette.Field do
     :fixed_value,
     :opts,
     :part_of,
-    :doc
+    :doc,
+    :file,
+    :line
   ]
 end

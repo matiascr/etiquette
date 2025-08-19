@@ -43,11 +43,11 @@ defmodule UDPSpec do
   use Etiquette.Spec
 
   packet "UDP Header Format", id: :udp_header do
-    field "Source Port", 16, doc: "This field identifies the sender's port." 
-    field "Destination Port", 16, doc: "This field identifies the receiver's port and is required." 
-    field "Length", 16, id: :length, doc: "This field specifies the length in bytes of the UDP datagram." 
-    field "Checksum", 16, doc: "The checksum field may be used for error-checking of the header and data." 
-    field "Data", (..), length_by: :length, doc: "The payload of the UDP packet." 
+    field "Source Port", 16
+    field "Destination Port", 16 
+    field "Length", 16, id: :length
+    field "Checksum", 16
+    field "Data", (..), length_by: :length
   end
 end
 ```
@@ -59,6 +59,21 @@ generate the following:
   the specification.
 - `UDPSpec.parse_udp_header/1`: Will parse the binary data into a map with the
   fields names as keys and the values as the parsed data according to the spec.
+  So, the result following the example above woud be something like:
+  ```elixir
+  {packet_data, remaining_data} = UDPSpec.parse_udp_header(some_data)
+  %{
+    source_port: ...,
+    destination_port: ...,
+    length: ...,
+    checksum: ...,
+    data: ...,
+  } = packet_data
+  ```
+  The parser function returns as part of the result the remaining data after
+  extracting the fields. Since the size depends on the data sent, it is possible
+  that some data falls outside of the determined length of the last field and
+  which may still be useful.
 - `UDPSpec.create_udp_header/5`: (TODO) Will create the binary from the given
   arguments. Depending on the spec, the function will have a different number of
   arguments, one for each field.
