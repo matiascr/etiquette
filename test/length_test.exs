@@ -4,33 +4,40 @@ defmodule LengthTest do
 
   packet "Pack" do
     field "Type", 2
-    field "Length", 2, id: :length
-    field "Data", (..), length_by: :length
+    field "Length", 2
+    field "Data", (..), length_by: :length, length_in: :bytes
   end
 
   # Tests
 
   test "parse pack" do
-    pack = <<0::size(2), 3::size(2), "data", 0::size(2), 1::size(2), "data">>
+    pack = <<
+      0::size(2),
+      3::size(2),
+      "dat",
+      0::size(2),
+      1::size(2),
+      "dat"
+    >>
 
     {parsed_pack, rest} = parse_pack(pack)
 
     assert parsed_pack == %{
              type: 0,
              length: 3,
-             data: :binary.decode_unsigned("data")
+             data: :binary.decode_unsigned("dat")
            }
 
-    assert rest == <<0b00::size(2), 0b01::size(2), "data">>
+    assert rest == <<0b00::size(2), 0b01::size(2), "dat">>
 
     {parsed_rest, rest} = parse_pack(rest)
 
     assert parsed_rest == %{
              type: 0,
              length: 1,
-             data: :binary.decode_unsigned("da")
+             data: :binary.decode_unsigned("d")
            }
 
-    assert rest == "ta"
+    assert rest == "at"
   end
 end

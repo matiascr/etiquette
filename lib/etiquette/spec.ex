@@ -9,6 +9,8 @@ defmodule Etiquette.Spec do
 
   defguard is_range(range) when is_struct(range, Range)
 
+  @debug false
+
   @current_packet_id :current_packet_id
   @current_packet_ast :current_packet_ast
   @packet_specs :packet_specs
@@ -53,6 +55,7 @@ defmodule Etiquette.Spec do
   The packet contents themselves are declared inside a `do` block containing `field`s. For more
   information, see [`field`](#field/3)
   """
+  @spec packet(String.t(), id: atom(), of: atom(), do: Macro.t()) :: Macro.t()
   defmacro packet(name, args \\ [], do: block) do
     env = __CALLER__
 
@@ -188,11 +191,9 @@ defmodule Etiquette.Spec do
     other means. The following are supported:
     - An **atom**: An atom can be used to use for reference. It will be interpreted that
       `length_by: :atom` means that the field's length is the value of the field that has `id: :atom`.
-    - A **function**. If a function is provided instead, the value of the field will be passed to the
-      function and the result will be used as the length of the field. For example, using
-      `length_by: &Module.calc_function/1` will mean that the result of passing the value of the
-      packet (starting from the position of the bits of that field, not the whole packet) to that
-      function, will return a positive integer that will be used as the length of the field.
+
+  - `length_in`: Used to indicate the format of the length. It can be specified with `:bits` or
+    `:bytes`. 
 
   - `part_of`: Used to declare that a specific field of a parent packet specification is subdivided
     into smaller fields. For example, a packet payload of a generic packet spec, can be divided into
@@ -224,7 +225,13 @@ defmodule Etiquette.Spec do
     end
     ```
   """
-  @spec field(String.t(), pos_integer() | Range.t(), keyword()) :: Macro.t()
+  @spec field(String.t(), pos_integer() | Range.t(),
+          length_by: atom(),
+          length_in: :bits | :bytes,
+          part_of: atom(),
+          id: atom(),
+          doc: String.t()
+        ) :: Macro.t()
   defmacro field(name, length, opts \\ []) do
     {length, _bindings} = Code.eval_quoted(length, [], __CALLER__)
     {opts, _bindings} = Code.eval_quoted(opts, [], __CALLER__)
@@ -240,6 +247,7 @@ defmodule Etiquette.Spec do
 
     part_of = Keyword.get(opts, :part_of)
     fixed_value = Keyword.get(opts, :fixed, nil)
+    length_in = Keyword.get(opts, :length_in, :bits)
 
     snake_case_name = snake_case(name)
 
@@ -253,6 +261,7 @@ defmodule Etiquette.Spec do
             name: name,
             id: id,
             length: length,
+            length_in: length_in,
             fixed_value: fixed_value,
             doc: Keyword.get(opts, :doc)
           ] do
@@ -276,6 +285,7 @@ defmodule Etiquette.Spec do
           name: name,
           ex_name: id || String.to_atom(ex_name),
           length: length,
+          length_in: length_in,
           part_of: part_of,
           doc: doc || @fdoc || nil,
           file: file,
@@ -301,6 +311,8 @@ defmodule Etiquette.Spec do
 
     part_of = Keyword.get(opts, :part_of)
     length_by = Keyword.get(opts, :length_by, nil)
+    length_in = Keyword.get(opts, :length_in, :bits)
+    decoder = Keyword.get(opts, :decoder, nil)
 
     snake_case_name = snake_case(name)
 
@@ -319,6 +331,8 @@ defmodule Etiquette.Spec do
             last: last,
             step: step,
             length_by: length_by,
+            length_in: length_in,
+            decoder: decoder,
             doc: Keyword.get(opts, :doc)
           ] do
       Module.register_attribute(__MODULE__, :fdoc, accumulate: false, persist: false)
@@ -341,6 +355,8 @@ defmodule Etiquette.Spec do
           name: name,
           ex_name: id || String.to_atom(ex_name),
           length: first..last//step,
+          length_in: length_in,
+          decoder: decoder,
           part_of: part_of,
           doc: doc || @fdoc || nil,
           file: file,
@@ -350,7 +366,6 @@ defmodule Etiquette.Spec do
       new_packet_spec =
         case length_by do
           lb when not is_nil(lb) and is_atom(lb) -> %{new_packet_spec | length_by_variable: lb}
-          lb when not is_nil(lb) and is_function(lb) -> %{new_packet_spec | length_by_function: lb}
           _ -> new_packet_spec
         end
 
@@ -448,11 +463,20 @@ defmodule Etiquette.Spec do
       end
       | generated_functions
     ]
+
+    if @debug do
+      Enum.map(generated_functions, fn x ->
+        x |> Macro.to_string() |> IO.puts()
+        x
+      end)
+    else
+      generated_functions
+    end
   end
 
-  @doc "A range going from minimum `num` up to the end."
+  @doc "A range going from minimum `num` up to the end. Equivalent to `num..`"
   def min(num), do: num..-1//1
-  @doc "A range going from the start up to maximum `num`."
+  @doc "A range going from the start up to maximum `num`. Equivalent to `..num`"
   def max(num), do: 0..num//1
 
   defp snake_case(string) do
@@ -532,25 +556,30 @@ defmodule Etiquette.Spec do
     field_name = Macro.var(ex_name, __MODULE__)
 
     case field do
-      %Field{length_by_function: lb} when is_function(lb) ->
+      %Field{decoder: decoder, length_in: :bits} when not is_nil(decoder) ->
         [
           quote do
-            bit_segment_size = unquote(lb).(rest)
-          end,
-          quote do
-            <<unquote(field_name)::size(bit_segment_size), rest::bitstring>> = rest
+            {unquote(field_name), rest} = then(rest, unquote(decoder))
           end
         ]
 
-      %Field{length_by_variable: lb} when is_atom(lb) and not is_nil(lb) ->
+      %Field{length_by_variable: lb, length_in: :bits} when is_atom(lb) and not is_nil(lb) ->
         # TODO: take into account if variable has been defined using function or if it's raw value
         var = Macro.var(lb, __ENV__.module)
 
         quote do
-          <<unquote(field_name)::size((unquote(var) + 1) * 8), rest::bitstring>> = rest
+          <<unquote(field_name)::size(unquote(var)), rest::bitstring>> = rest
         end
 
-      %Field{fixed_value: fv, length: l} when is_integer(fv) and is_integer(l) ->
+      %Field{length_by_variable: lb, length_in: :bytes} when is_atom(lb) and not is_nil(lb) ->
+        # TODO: take into account if variable has been defined using function or if it's raw value
+        var = Macro.var(lb, __ENV__.module)
+
+        quote do
+          <<unquote(field_name)::size(unquote(var) * 8), rest::bitstring>> = rest
+        end
+
+      %Field{fixed_value: fv, length: l, length_in: :bits} when is_integer(fv) and is_integer(l) ->
         quote do
           <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
             <<unquote(fv)::size(unquote(l)), rest::bitstring>> = rest
@@ -561,7 +590,7 @@ defmodule Etiquette.Spec do
           unquote(field_name) = rest
         end
 
-      %Field{length: l} when is_integer(l) ->
+      %Field{length: l, length_in: :bits} when is_integer(l) ->
         quote do
           <<unquote(field_name)::size(unquote(l)), rest::bitstring>> = rest
         end

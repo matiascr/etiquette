@@ -61,7 +61,9 @@ defmodule Etiquette.MixProject do
     [
       "guides/introduction/getting_started.md",
       "guides/introduction/overview.md",
-      "guides/how_tos/length_of.md"
+      "guides/how_tos/length_of.md",
+      "guides/how_tos/validating_packet_formats.md",
+      "guides/how_tos/packet_types_and_subtypes.md"
     ]
   end
 

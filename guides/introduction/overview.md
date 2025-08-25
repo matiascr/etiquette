@@ -1,7 +1,7 @@
 # Overview
 
 Etiquette is a library for creating packet specifications. The usage of packets
-is standard across most network communications but it can have other uses and be
+is standard across most network communications, but it can have other uses and be
 a good way to efficiently store data and move it around.
 
 Let's take a simple packet specification. The UDP header format:
@@ -59,7 +59,7 @@ generate the following:
   the specification.
 - `UDPSpec.parse_udp_header/1`: Will parse the binary data into a map with the
   fields names as keys and the values as the parsed data according to the spec.
-  So, the result following the example above woud be something like:
+  So, the result following the example above would be something like:
   ```elixir
   {packet_data, remaining_data} = UDPSpec.parse_udp_header(some_data)
   %{
@@ -72,7 +72,7 @@ generate the following:
   ```
   The parser function returns as part of the result the remaining data after
   extracting the fields. Since the size depends on the data sent, it is possible
-  that some data falls outside of the determined length of the last field and
+  that some data falls outside the determined length of the last field and
   which may still be useful.
 - `UDPSpec.create_udp_header/5`: (TODO) Will create the binary from the given
   arguments. Depending on the spec, the function will have a different number of
@@ -82,4 +82,4 @@ Above we used a very simple example. To define more complex specifications,
 there are more arguments and options for
 [`packet`](Etiquette.Spec.html#packet/3) and
 [`field`](Etiquette.Spec.html#field/3). Continue reading the guides to learn how
-to use the to your advantage.
+to use the multiple available options to your advantage.

@@ -57,22 +57,28 @@ The other one is to use a `Range`. Using a `Range` we can specify a minimum
 length using `8..` or `min(8)`, a maximum length using `..256` or `max(256)`,
 and an indefinite length using `(..)` like in the example above. Whenever we use
 a `Range` as the length, we need to provide an additional field `length_by`.
-`length_by` can be used one of two ways:
+`length_by` can be used by providing an `atom`. When we provide
+`length_by: :field_x`, we're saying that the length of the field is determined
+by the value (in number of bytes) of the field with id `id: :field_x`. This is
+why we used the `id` in field "Length" and not in the others.
 
-- Providing an `atom`: When we provide `length_by: :field_x`, we're saying that
-  the length of the field is determined by the value (in number of bytes) of the
-  field with id `id: :field_x`. This is why we used the `id` in field "Length"
-  and not in the others.
-- Providing a function capture: By providing a function capture that takes one
-  argument and returns an positive integer, the field length (in bytes) is
-  determined by that result.
+If we don't have the aforementioned methods available to us, it's also possible
+to provide a `decoder: &capture/1` argument. To use, we need to provide a
+function capture that takes one argument and returns a tuple with the desired
+binary and with the remaining data, normally taking the form:
+
+    @spec decoder(bitstring()) :: {pos_integer(), bitstring()}
+
+This will take the binary data starting from the field position and use the
+provided function to determine the value contained within.
 
 It is important to know the length of each of the fields, if not at
 compile-time, at least derive it from some other value at runtime. Say we
-received a long string of bytes and we want to parse it into the different
+received a long string of bytes, and we want to parse it into the different
 packets it contains. We would need to know where each ends to know where to
 start parsing the next one. It is not necessarily the case that we will receive
 and parse packets one at a time. This is the main reason why the result of the
-generated `UDPSpec.parse_udp_header/1` will be a map containing a key `:rest`
-containing the data that falls out of the "Data" field, to be able to continue
-parsing the remaining bits.
+generated `UDPSpec.parse_udp_header/1` is a tuple containing a map with the data
+and the rest of the binary data containing the contents that fall out of the
+last field (in our example, in the "Data" field). This is so we are able to
+continue parsing the remaining bits.
