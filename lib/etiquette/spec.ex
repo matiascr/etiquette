@@ -5,8 +5,6 @@ defmodule Etiquette.Spec do
   Add `use Etiquette.Spec` to your module for the best experience.
   """
 
-  import Bitwise, only: [<<<: 2]
-
   alias Etiquette.Field
 
   defguard is_range(range) when is_struct(range, Range)
@@ -67,7 +65,9 @@ defmodule Etiquette.Spec do
           No identifier was provided to the #{name} packet specification. Declare an `:id` before the `do` block.
           """
 
-    if not is_atom(id), do: raise(ArgumentError, "The ID provided to a packet declaration must be an atom.")
+    if not is_atom(id) do
+      raise ArgumentError, "The ID provided to a packet declaration must be an atom."
+    end
 
     quote do
       # Add ID and AST
@@ -119,7 +119,9 @@ defmodule Etiquette.Spec do
 
   @doc """
   Defines the structure of a packet field. A packet field is a specific section of the packet. Must
-  be inside the `do` block of a [`packet`](#packet/3). For example:
+  be inside the `do` block of a [`packet`](#packet/3).
+
+  For example:
 
   ```elixir
   packet "Packet spec", id: :spec do
@@ -232,28 +234,12 @@ defmodule Etiquette.Spec do
   end
 
   defp __field__(env, name, length, opts) when is_integer(length) do
-    validate_fixed_length_field(env, length, opts)
+    Field.validate_integer_length_field(env, length, opts)
 
     id = Keyword.get(opts, :id)
 
     part_of = Keyword.get(opts, :part_of)
     fixed_value = Keyword.get(opts, :fixed, nil)
-
-    cond do
-      is_integer(fixed_value) ->
-        if not fits_unsigned?(fixed_value, length) do
-          raise ArgumentError, """
-          Fixed value #{fixed_value} won't fit in the given length #{inspect(length)}.
-          The highest value you can fit in #{inspect(length)} #{if length == 1, do: "bit", else: "bits"} is #{2 ** length - 1} / 0x#{Integer.to_string(2 ** length - 1, 16)}.
-          """
-        end
-
-      not is_nil(fixed_value) ->
-        raise ArgumentError, "`fixed_value` has to be an non-negative integer."
-
-      true ->
-        :noop
-    end
 
     snake_case_name = snake_case(name)
 
@@ -309,9 +295,7 @@ defmodule Etiquette.Spec do
   end
 
   defp __field__(env, name, length, opts) when is_range(length) do
-    validate_range_length_field(env, length, opts)
-
-    first..last//step = length
+    Field.validate_range_length_field(env, length, opts)
 
     id = Keyword.get(opts, :id)
 
@@ -319,6 +303,8 @@ defmodule Etiquette.Spec do
     length_by = Keyword.get(opts, :length_by, nil)
 
     snake_case_name = snake_case(name)
+
+    first..last//step = length
 
     quote bind_quoted: [
             file: env.file,
@@ -440,12 +426,9 @@ defmodule Etiquette.Spec do
             parsed_packet =
               Map.new([
                 unquote_splicing(
-                  Enum.map(fields, fn field ->
-                    field_name = field.ex_name
-                    field_var = Macro.var(field.ex_name, __MODULE__)
-
+                  Enum.map(fields, fn %Field{ex_name: ex_name} ->
                     quote do
-                      {unquote(field_name), unquote(field_var)}
+                      {unquote(ex_name), unquote(Macro.var(ex_name, __MODULE__))}
                     end
                   end)
                 )
@@ -459,8 +442,8 @@ defmodule Etiquette.Spec do
     [
       quote do
         @moduledoc """
-        Specification for
-        - #{unquote(Enum.join(Enum.map(packet_specs, fn {_, spec} -> spec.name end), "- "))}
+        Contains the specification#{unquote(if(Enum.count(packet_specs) == 1, do: "", else: "s"))} for
+        - #{unquote(Enum.join(Enum.map(packet_specs, fn {_, spec} -> spec.name end), "\n- "))}
         """
       end
       | generated_functions
@@ -538,7 +521,7 @@ defmodule Etiquette.Spec do
       end
     end)
 
-    validate_field_order(fields)
+    Field.validate_field_order(fields)
 
     fields
     |> Enum.map(&quote_field/1)
@@ -615,61 +598,5 @@ defmodule Etiquette.Spec do
     # #{title}:
     #{field_docs}
     """
-  end
-
-  defp fits_unsigned?(n, bits) when is_integer(n) and is_integer(bits) and bits > 0 do
-    n >= 0 and n < 1 <<< bits
-  end
-
-  defp validate_fixed_length_field(env, length, opts) when is_integer(length) do
-    if not (length > 0) do
-      raise CompileError,
-        file: env.file,
-        line: env.line,
-        description: "`length` must be a positive integer or an ascending range, got #{inspect(length)}."
-    end
-
-    if :length_by in Keyword.keys(opts) do
-      raise CompileError,
-        file: env.file,
-        line: env.line,
-        description: "`length_by` use is redundant. It is meant to be used when using a `Range` as the length."
-    end
-  end
-
-  defp validate_range_length_field(env, a..b//c = length, opts) do
-    if not ((a < b or (a >= 0 and b == -1)) and c == 1) do
-      raise CompileError,
-        file: env.file,
-        line: env.line,
-        description: "`length` must be a positive integer or an ascending range, got #{inspect(length)}."
-    end
-
-    opts = Keyword.keys(opts)
-
-    if :fixed in opts and :length_by in opts do
-      raise CompileError,
-        file: env.file,
-        line: env.line,
-        description: "Using `fixed` option together with `length_by` is not allowed."
-    end
-  end
-
-  defp validate_field_order(fields) when length(fields) != 0 do
-    List.foldl(fields, [], fn %Field{ex_name: ex_name, length_by_variable: variable, name: name, file: file, line: line},
-                              acc ->
-      if not is_nil(variable) and variable not in acc do
-        raise CompileError,
-          file: file,
-          line: line,
-          description: """
-          Expected field with id "#{variable}" to be declared before field #{name}
-          """
-      end
-
-      [ex_name | acc]
-    end)
-
-    true
   end
 end
