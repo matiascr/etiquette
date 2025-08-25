@@ -2,7 +2,7 @@ defmodule PartOfTest do
   use ExUnit.Case, async: true
   use Etiquette.Spec
 
-  packet "Packet", id: :packet do
+  packet "Packet" do
     field "id", 2
     field "type-specific field", 14, id: :type_specific_field
     field "payload", 8

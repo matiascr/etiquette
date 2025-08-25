@@ -1,6 +1,8 @@
 defmodule Etiquette.Spec do
   @moduledoc """
-  To use the Etiquette library to import all the things required to create packet specifications.
+  Module containing the utilities needed to use the Etiquette library.
+
+  Add `use Etiquette.Spec` to your module for the best experience.
   """
 
   import Bitwise, only: [<<<: 2]
@@ -43,7 +45,9 @@ defmodule Etiquette.Spec do
   - `name`: Mandatory field. A string with the name of the field.
 
   - `id`: An atom used to take care of references. When another packet uses the `of` argument, the
-    id is what will be used for reference.
+    id is what will be used for reference. By default, the id will be the name converted to an snake
+    case atom, but if the name has a long or weird structure, this id can override it for its
+    references and function names.
 
   - `of`: Declares that a packet follows a previously declared packet specification. The specs have
     to be declared in the same file. This argument needs to be present when using `part_of`.
@@ -55,7 +59,7 @@ defmodule Etiquette.Spec do
     env = __CALLER__
 
     id =
-      Keyword.get(args, :id) ||
+      Keyword.get(args, :id) || String.to_atom(snake_case(name)) ||
         raise CompileError,
           file: env.file,
           line: env.line,
@@ -144,6 +148,7 @@ defmodule Etiquette.Spec do
     following the example above.
 
     ## Example
+
     ```elixir
     iex> defmodule Spec do
     ...>   use Etiquette.Spec
@@ -196,9 +201,9 @@ defmodule Etiquette.Spec do
     This also means that the size of the parent field will have to be coherent with the size of the
     children fields.
 
-  - `id`: Must be an atom. An id will be required if another field references this one with
+  - `id`: Must be an atom. An id will be used if another field references this one with
     `length_by` or `part_of`. It can also be used to specify the name that you want to be
-    used/returned by the generated functions.
+    used by the generated functions and the maps they results return.
     IDs are also used when parent and child both have the same field declared. You may want to do
     this when declaring a fixed value in a child spec, for example. In this case, it would be
     recommended to add an ID to the field in the parent packet spec, and then add the same ID to the
@@ -207,13 +212,13 @@ defmodule Etiquette.Spec do
   - `doc`: Provides full documentation on the field. This documentation will be used to document the
     whole module that is using `Etiquette.Spec`. Alternatively, use `@fdoc` to document a field
     before the declaration. For example:
+
     ```elixir
     packet "Header", id: :header do
       field "Type", 2, doc: "Determines the packet type"
       # is equivalent to
       @fdoc "Determines the packet type"
       field "Type", 2
-      ...
     end
     ```
   """
@@ -411,7 +416,7 @@ defmodule Etiquette.Spec do
           def unquote(is_name)(input) when is_bitstring(input) do
             rest = input
 
-            unquote_splicing(parse_destructuring(fields))
+            unquote_splicing(parse_field_destructuring(fields))
 
             true
           rescue
@@ -430,7 +435,7 @@ defmodule Etiquette.Spec do
           def unquote(parse_name)(input) do
             rest = input
 
-            unquote_splicing(parse_destructuring(fields))
+            unquote_splicing(parse_field_destructuring(fields))
 
             parsed_packet =
               Map.new([
@@ -503,7 +508,7 @@ defmodule Etiquette.Spec do
     parent_with_inherited_children ++ not_inherited_children
   end
 
-  defp parse_destructuring(fields) do
+  defp parse_field_destructuring(fields) do
     all_fields = Enum.map(fields, fn field -> field.ex_name end)
 
     Enum.each(fields, fn field ->
@@ -648,7 +653,6 @@ defmodule Etiquette.Spec do
         line: env.line,
         description: "Using `fixed` option together with `length_by` is not allowed."
     end
-
   end
 
   defp validate_field_order(fields) when length(fields) != 0 do
