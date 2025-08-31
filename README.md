@@ -54,6 +54,11 @@ iex> Example.Spec.is_bye_packet?(<<1::1, 0b11::2, "rest">>)
 true
 ```
 
+Not only are the methods available and functional, but the provided documentation and other arguments are also analyzed to provide in-depth documentation of each generated function:
+
+![example_function_help](https://github.com/user-attachments/assets/9e50be09-4f6b-401a-bb9c-32ae702ef0db)
+
+
 ## Roadmap
 
 - [x] Generate pretty markdown documentation from the spec module
