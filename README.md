@@ -58,6 +58,8 @@ Not only are the methods available and functional, but the provided documentatio
 
 ![example_function_help](https://github.com/user-attachments/assets/9e50be09-4f6b-401a-bb9c-32ae702ef0db)
 
+![example_function_help_2](https://github.com/user-attachments/assets/6b6d3f78-b7d1-4f7d-9dc4-74394864dc78)
+
 
 ## Roadmap
 
