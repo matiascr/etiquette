@@ -64,21 +64,22 @@ iex> Example.Spec.parse_bye_packet(<<1::1, 0b11::2, 0xFF, 0xAA>>)
 }
 ```
 
-Not only are the methods available and functional, but the provided documentation and other arguments are also analyzed to provide in-depth documentation of each generated function:
+Not only are the methods available and functional, but the provided
+documentation and other arguments are also analyzed to provide in-depth
+documentation of each generated function:
 
 ![example_function_help](https://github.com/user-attachments/assets/9e50be09-4f6b-401a-bb9c-32ae702ef0db)
 
 ![example_function_help_2](https://github.com/user-attachments/assets/6b6d3f78-b7d1-4f7d-9dc4-74394864dc78)
 
-
 ## Roadmap
 
-- [X] Generate pretty markdown documentation from the spec module
-- [X] Generate pretty markdown documentation for each function
-- [X] Generate complete typespecs in functions for easier use
+- [x] Generate pretty markdown documentation from the spec module
+- [x] Generate pretty markdown documentation for each function
+- [x] Generate complete typespecs in functions for easier use
 - [ ] Implement `generate_x_packet(field1, field2, ...) :: <<...>>`
-- [X] Implement `parse_x_packet(<<...>>) :: %{field1: ..., field2: ..., ...}`
-- [X] Improve inheritance between packet specs (for using the same header, for
+- [x] Implement `parse_x_packet(<<...>>) :: %{field1: ..., field2: ..., ...}`
+- [x] Improve inheritance between packet specs (for using the same header, for
       fixing values of previously defined fields, etc...) TODO: Add more tests
       to cover corner cases of inheritance (order changes, last field injection,
       validation of lengths).

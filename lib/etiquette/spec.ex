@@ -501,16 +501,30 @@ defmodule Etiquette.Spec do
       end)
 
     parent_with_inherited_children =
-      Enum.reduce(parent_fields, [], fn parent_field, acc ->
+      parent_fields
+      |> Enum.reduce([], fn %Field{} = parent_field, acc ->
         parent_name = parent_field.ex_name
 
-        acc ++
+        updated_field =
           cond do
-            parent_name in children_names -> Enum.filter(child_fields, &(&1.ex_name == parent_name))
-            parent_name in children_part_of -> Enum.filter(child_fields, &(&1.part_of == parent_name))
-            true -> [parent_field]
+            parent_name in children_names ->
+              child_fields
+              |> Enum.find(&(&1.ex_name == parent_name))
+              |> case do
+                %Field{doc: nil} = field -> [%{field | doc: parent_field.doc}]
+                field -> [field]
+              end
+
+            parent_name in children_part_of ->
+              Enum.filter(child_fields, &(&1.part_of == parent_name))
+
+            true ->
+              [parent_field]
           end
+
+        acc ++ updated_field
       end)
+      |> List.flatten()
 
     parent_with_inherited_children ++ not_inherited_children
   end
@@ -582,7 +596,7 @@ defmodule Etiquette.Spec do
       %Field{fixed_value: fv, length: l, length_in: :bits} when is_integer(fv) and is_integer(l) ->
         quote do
           <<unquote(field_name)::size(unquote(l)), rest::bitstring>> =
-            <<unquote(fv)::size(unquote(l)), rest::bitstring>> = rest
+            <<unquote(fv)::size(unquote(l)), _::bitstring>> = rest
         end
 
       %Field{length: length} when is_range(length) ->
