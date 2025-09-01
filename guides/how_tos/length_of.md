@@ -49,6 +49,8 @@ with room for some flexibility. We have determined the first four fields to have
 16 bits of length, however, the size of the "Data" that the packet contains can
 be of variable length.
 
+## Specifying the length of a field
+
 When calling [`field`](Etiquette.Spec.html#field/3), it lets you specify the
 length of the field in different ways. The first one is a fixed length, using an
 integer. This will fix the length of the field (in bits) to that number.
@@ -62,10 +64,14 @@ a `Range` as the length, we need to provide an additional field `length_by`.
 by the value (in number of bytes) of the field with id `id: :field_x`. This is
 why we used the `id` in field "Length" and not in the others.
 
-If we don't have the aforementioned methods available to us, it's also possible
-to provide a `decoder: &capture/1` argument. To use, we need to provide a
-function capture that takes one argument and returns a tuple with the desired
-binary and with the remaining data, normally taking the form:
+## More specialized options
+
+If we can't specify the length of a field at the time declaration, it's also
+possible to provide a `decoder: &capture/1` argument. This can help us extract
+the value we want from the binary, using whichever method we want to determine
+the length of the field. To use, we need to provide a function capture that
+takes one argument and returns a tuple with the desired binary and with the
+remaining data, normally taking the form:
 
     @spec decoder(bitstring()) :: {pos_integer(), bitstring()}
 
