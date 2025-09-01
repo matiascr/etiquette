@@ -70,7 +70,8 @@ documentation of each generated function:
 
 ![example_function_help](https://github.com/user-attachments/assets/9e50be09-4f6b-401a-bb9c-32ae702ef0db)
 
-![example_function_help_2](https://github.com/user-attachments/assets/6b6d3f78-b7d1-4f7d-9dc4-74394864dc78)
+![example_function_help_2](https://github.com/user-attachments/assets/fd02b75b-a698-497e-ae2e-65c74a68a0fb)
+
 
 ## Roadmap
 
