@@ -12,13 +12,13 @@ defmodule Etiquette.Field do
           length_by_variable: atom(),
           length_in: :bytes | :bits,
           decoder: function(),
-          fixed_value: atom(),
-          opts: keyword(),
+          fixed_value: non_neg_integer(),
           part_of: atom(),
           doc: String.t(),
-          file: any(),
-          line: pos_integer()
+          file: Path.t(),
+          line: non_neg_integer()
         }
+
   @enforce_keys [:name, :ex_name]
   defstruct [
     :name,
@@ -28,7 +28,6 @@ defmodule Etiquette.Field do
     :length_in,
     :decoder,
     :fixed_value,
-    :opts,
     :part_of,
     :doc,
     :file,

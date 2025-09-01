@@ -43,7 +43,7 @@ defmodule UDPSpec do
 end
 ```
 
-Taking a look at [`field`](Etiquette.Spec.html#field/3), you will see that the
+Taking a look at [`field`](`Etiquette.Spec.field/3`), you will see that the
 signature is `field(name, length, opts)`. The second argument is mandatory, but
 with room for some flexibility. We have determined the first four fields to have
 16 bits of length, however, the size of the "Data" that the packet contains can
@@ -51,7 +51,7 @@ be of variable length.
 
 ## Specifying the length of a field
 
-When calling [`field`](Etiquette.Spec.html#field/3), it lets you specify the
+When calling [`field`](`Etiquette.Spec.field/3`), it lets you specify the
 length of the field in different ways. The first one is a fixed length, using an
 integer. This will fix the length of the field (in bits) to that number.
 

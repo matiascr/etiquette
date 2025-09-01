@@ -35,7 +35,7 @@ Let's take a simple packet specification. The UDP header format:
 
 From this specification we can gather that the packet has five fields, the first
 with a fixed length of two bytes and the last with an indefinite length. Using
-[`Etiquette.Spec`](Etiquette.Spec.html), we can create the specification as
+[`Etiquette.Spec`](`Etiquette.Spec`), we can create the specification as
 follows:
 
 ```elixir
@@ -52,7 +52,7 @@ defmodule UDPSpec do
 end
 ```
 
-Using the information provided, [`Etiquette.Spec`](Etiquette.Spec.html) will
+Using the information provided, [`Etiquette.Spec`](`Etiquette.Spec`) will
 generate the following:
 
 - `UDPSpec.is_udp_header?/1`: Will return `true` if the binary data conforms to
@@ -80,6 +80,6 @@ generate the following:
 
 Above we used a very simple example. To define more complex specifications,
 there are more arguments and options for
-[`packet`](Etiquette.Spec.html#packet/3) and
-[`field`](Etiquette.Spec.html#field/3). Continue reading the guides to learn how
+[`packet`](`Etiquette.Spec.packet/3`) and
+[`field`](`Etiquette.Spec.field/3`). Continue reading the guides to learn how
 to use the multiple available options to your advantage.

@@ -120,12 +120,10 @@ defmodule Etiquette.Spec do
 
   For example:
 
-  ```elixir
-  packet "Packet spec", id: :spec do
-    field "First field", 4
-    field "Second field", 4
-  end
-  ```
+      packet "Packet spec", id: :spec do
+        field "First field", 4
+        field "Second field", 4
+      end
 
   Mandatory arguments to be provided are:
 
@@ -147,38 +145,36 @@ defmodule Etiquette.Spec do
     following the example above.
 
     ## Example
+        iex> defmodule Spec do
+        ...>   use Etiquette.Spec
+        ...>   packet "Header", id: :header do
+        ...>     field "Type", 2
+        ...>     field "Data", (..)
+        ...>   end
+        ...>   packet "Type 0", id: :type_0, of: :header do
+        ...>     field "Type", 2, fixed: 0b00
+        ...>     field "Data", (..)
+        ...>   end
+        ...>   packet "Type 1", id: :type_1, of: :header do
+        ...>     field "Type", 2, fixed: 0b01
+        ...>     field "Data", (..)
+        ...>   end
+        ...> end
+        iex> packet_0 = <<0b00::2, "this is data">>
+        iex> packet_1 = <<0b01::2, "this is data">>
+        iex> Spec.is_header?(packet_0)
+        true
+        iex> Spec.is_header?(packet_1)
+        true
+        iex> Spec.is_type_0?(packet_0)
+        true
+        iex> Spec.is_type_1?(packet_0)
+        false
+        iex> Spec.is_type_0?(packet_1)
+        false
+        iex> Spec.is_type_1?(packet_1)
+        true
 
-    ```elixir
-    iex> defmodule Spec do
-    ...>   use Etiquette.Spec
-    ...>   packet "Header", id: :header do
-    ...>     field "Type", 2
-    ...>     field "Data", (..)
-    ...>   end
-    ...>   packet "Type 0", id: :type_0, of: :header do
-    ...>     field "Type", 2, fixed: 0b00
-    ...>     field "Data", (..)
-    ...>   end
-    ...>   packet "Type 1", id: :type_1, of: :header do
-    ...>     field "Type", 2, fixed: 0b01
-    ...>     field "Data", (..)
-    ...>   end
-    ...> end
-    iex> packet_0 = <<0b00::2, "this is data">>
-    iex> packet_1 = <<0b01::2, "this is data">>
-    iex> Spec.is_header?(packet_0)
-    true
-    iex> Spec.is_header?(packet_1)
-    true
-    iex> Spec.is_type_0?(packet_0)
-    true
-    iex> Spec.is_type_1?(packet_0)
-    false
-    iex> Spec.is_type_0?(packet_1)
-    false
-    iex> Spec.is_type_1?(packet_1)
-    true
-    ```
     See the tests and section [Validating Packet Formats](../../guides/how_tos/validating_packet_formats.md) for more examples.
 
   - `length_by`: Used to indicate that the length of the field is not fixed and declared through
@@ -210,14 +206,13 @@ defmodule Etiquette.Spec do
     whole module that is using `Etiquette.Spec`. Alternatively, use `@fdoc` to document a field
     before the declaration. For example:
 
-    ```elixir
-    packet "Header", id: :header do
-      field "Type", 2, doc: "Determines the packet type"
-      # is equivalent to
-      @fdoc "Determines the packet type"
-      field "Type", 2
-    end
-    ```
+          packet "Header", id: :header do
+            field "Type", 2, doc: "Determines the packet type"
+            # is equivalent to
+            @fdoc "Determines the packet type"
+            field "Type", 2
+          end
+
   """
   @spec field(String.t(), pos_integer() | Range.t(),
           length_by: atom(),

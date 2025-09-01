@@ -78,9 +78,9 @@ the "Hello" a Packet Type binary "00" and the "Goodbye" packet a "11":
   </tr>
 </table>
 
-To make this straightforward to represent, [`Etiquette`](Etiquette.Spec.html)
+To make this straightforward to represent, [`Etiquette`](`Etiquette.Spec`)
 allows specifying a `fixed: value` argument to each
-[`field`](Etiquette.Spec.html#field/3). So let's proceed and create their
+[`field`](`Etiquette.Spec.field/3`). So let's proceed and create their
 definitions:
 
 ```elixir
@@ -137,9 +137,9 @@ bytes), so `is_hello?` would be false in this case. However, if the argument of
 `is_hello?` is larger than the specified length of the packet, it can be true
 for the same reason that the generated `parse` methods can accept larger
 binaries than what they parse. See
-[the length guide](length_of.html#more-specialized-options) for more details on
+[the length guide](/guides/how_tos/length_of.md#more-specialized-options) for more details on
 why this is the case.
 
-Continue through the [Packet Types and Subtypes](packet_types_and_subtypes.html)
-guide to learn about other [`field`](Etiquette.Spec.html#field/3) arguments that
+Continue through the [Packet Types and Subtypes](/guides/how_tos/packet_types_and_subtypes.md)
+guide to learn about other [`field`](`Etiquette.Spec.field/3`) arguments that
 can help you streamline the creation of packet variants.
