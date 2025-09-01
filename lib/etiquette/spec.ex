@@ -21,6 +21,7 @@ defmodule Etiquette.Spec do
 
   defmacro __using__(_) do
     quote do
+      import Bitwise, only: [<<<: 2]
       import Etiquette.Spec
 
       Module.put_attribute(__MODULE__, unquote(@packet_specs), %{})
@@ -375,6 +376,7 @@ defmodule Etiquette.Spec do
       for {id, spec} <- packet_specs, into: [] do
         is_name = :"is_#{id}?"
         parse_name = :"parse_#{id}"
+        build_name = :"build_#{id}"
 
         fields =
           if is_atom(spec.of) and not is_nil(spec.of) do
@@ -386,15 +388,11 @@ defmodule Etiquette.Spec do
 
         spec = Map.replace(spec, :fields, fields)
 
-        keys_ast =
-          for key <- Enum.map(fields, fn field -> field.ex_name end) do
-            key
-          end
-
-        map_ast =
-          for key <- keys_ast do
-            {key, {:bitstring, [], Elixir}}
-          end
+        map_spec_ast = Field.build_map_spec_ast(fields)
+        args_spec_ast = Field.build_args_spec_ast(fields)
+        args_ast = Field.build_args_ast(fields)
+        args_guard_ast = Field.build_args_guard_ast(fields)
+        bit_string_ast = Field.build_bit_string_ast(fields)
 
         quote do
           @doc """
@@ -421,7 +419,7 @@ defmodule Etiquette.Spec do
 
           #{unquote(parse_rfc_spec(spec))}
           """
-          @spec unquote(parse_name)(packet()) :: {%{unquote_splicing(map_ast)}, packet()}
+          @spec unquote(parse_name)(packet()) :: {%{unquote_splicing(map_spec_ast)}, packet()}
           def unquote(parse_name)(input) do
             rest = input
 
@@ -439,6 +437,16 @@ defmodule Etiquette.Spec do
               ])
 
             {parsed_packet, rest}
+          end
+
+          @doc """
+          Builds a #{unquote(spec.name)} packet given it's field values.
+
+          #{unquote(parse_rfc_spec(spec))}
+          """
+          @spec unquote(build_name)(unquote_splicing(args_spec_ast)) :: bitstring()
+          def unquote({:when, [], [{build_name, [], args_ast}, args_guard_ast]}) do
+            unquote(bit_string_ast)
           end
         end
       end
@@ -519,35 +527,7 @@ defmodule Etiquette.Spec do
   end
 
   defp parse_field_destructuring(fields) do
-    all_fields = Enum.map(fields, fn field -> field.ex_name end)
-
-    Enum.each(fields, fn field ->
-      case field do
-        %Field{length_by_variable: var, file: file, line: line} when is_atom(var) and not is_nil(var) ->
-          if var not in all_fields do
-            raise CompileError,
-              file: file,
-              line: line,
-              description: """
-              Field \"#{field.name}\" references a field (\"#{var}\" or \:#{var}) that does not
-              exist.
-
-              Make sure that a field
-
-                  field \"#{var}\", _
-              or
-                  field _, _, id: :#{var}
-                  
-              exists in the packet specification. Keep in mind that the `:id` option will override
-              the name and the `id` is what has to be referenced.
-              """
-          end
-
-        _ ->
-          :ok
-      end
-    end)
-
+    Field.validate_destructured_fields(fields)
     Field.validate_field_order(fields)
 
     fields

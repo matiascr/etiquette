@@ -70,9 +70,6 @@ defmodule Etiquette.Field do
     end
 
     # TODO: Raise only when it's not the last field
-    # if :length_by not in Keyword.keys(opts) do
-    #   raise(ArgumentError, "`length_by` is a required argument when using a `Range` as the length.")
-    # end
   end
 
   def validate_integer_length_field(env, length, opts) when is_integer(length) do
@@ -109,7 +106,88 @@ defmodule Etiquette.Field do
     end
   end
 
+  def validate_destructured_fields(fields) do
+    all_fields = Enum.map(fields, fn field -> field.ex_name end)
+
+    Enum.each(fields, fn field ->
+      case field do
+        %Field{length_by_variable: var, file: file, line: line} when is_atom(var) and not is_nil(var) ->
+          if var not in all_fields do
+            raise CompileError,
+              file: file,
+              line: line,
+              description: """
+              Field \"#{field.name}\" references a field (\"#{var}\" or \:#{var}) that does not
+              exist.
+
+              Make sure that a field
+
+                  field \"#{var}\", _
+              or
+                  field _, _, id: :#{var}
+                  
+              exists in the packet specification. Keep in mind that the `:id` option will override
+              the name and the `id` is what has to be referenced.
+              """
+          end
+
+        _ ->
+          :ok
+      end
+    end)
+  end
+
   defp fits_unsigned?(n, bits) when is_integer(n) and is_integer(bits) and bits > 0 do
     n >= 0 and n < 1 <<< bits
+  end
+
+  def build_map_spec_ast(fields) do
+    for field <- fields, do: {field.ex_name, {:bitstring, [], Elixir}}
+  end
+
+  def build_args_ast(fields) do
+    for field <- fields, do: {field.ex_name, [], Elixir}
+  end
+
+  def build_args_spec_ast(fields) do
+    Enum.map(fields, fn
+      %Field{length: length} when is_integer(length) -> {:.., [], [0, Bitwise.bsl(1, length) - 1]}
+      _ -> {:bitstring, [], Elixir}
+    end)
+  end
+
+  def build_args_guard_ast(fields) do
+    fields
+    |> Enum.map(fn
+      %Field{ex_name: ex_name, length: length} when is_integer(length) ->
+        [
+          {:not, [], [{:is_nil, [], [{ex_name, [], Elixir}]}]},
+          {:<, [], [{ex_name, [], Elixir}, {:<<<, [], [1, length]}]},
+          {:!=, [], [{ex_name, [], Elixir}, ""]}
+        ]
+
+      %Field{ex_name: ex_name} ->
+        [
+          {:not, [], [{:is_nil, [], [{ex_name, [], Elixir}]}]},
+          {:!=, [], [{ex_name, [], Elixir}, ""]}
+        ]
+    end)
+    |> List.flatten()
+    |> Enum.reduce(fn g, acc ->
+      {:and, [], [acc, g]}
+    end)
+  end
+
+  def build_bit_string_ast(fields) do
+    segments =
+      Enum.map(fields, fn
+        %Field{ex_name: ex_name, length: length} when is_integer(length) ->
+          {:"::", [], [{ex_name, [], Elixir}, {:size, [], [length]}]}
+
+        %Field{ex_name: ex_name} ->
+          {:"::", [], [{ex_name, [], Elixir}, {:bitstring, [], Elixir}]}
+      end)
+
+    {:<<>>, [], segments}
   end
 end
