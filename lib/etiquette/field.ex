@@ -58,7 +58,7 @@ defmodule Etiquette.Field do
       raise CompileError,
         file: env.file,
         line: env.line,
-        description: "`length` must be a positive integer or an ascending range, got #{inspect(length)}."
+        description: "`length` must be a positive integer, an ascending range or `(..)`, got #{inspect(length)}."
     end
 
     opts = Keyword.keys(opts)
@@ -99,7 +99,7 @@ defmodule Etiquette.Field do
       raise CompileError,
         file: env.file,
         line: env.line,
-        description: "`length` must be a positive integer or an ascending range, got #{inspect(length)}."
+        description: "`length` must be a positive integer an ascending range or `(..)`, got #{inspect(length)}."
     end
 
     if :length_by in Keyword.keys(opts) do

@@ -11,27 +11,21 @@ defmodule Etiquette.Spec do
 
   @debug false
 
+  # Module attribute names
   @current_packet_id :current_packet_id
   @current_packet_ast :current_packet_ast
   @packet_specs :packet_specs
 
+  # Spec field names
   @function_body_ast :function_body_ast
 
-  @docs_formats [:rfc, :md_list, :md_table]
-  @default_docs_format :rfc
-
-  defmacro __using__(opts) do
-    docs_format = Keyword.get(opts, :docs_format, @default_docs_format)
-    docs_format = if docs_format in @docs_formats, do: docs_format, else: @default_docs_format
-
+  defmacro __using__(_) do
     quote do
       import Etiquette.Spec
 
       Module.put_attribute(__MODULE__, unquote(@packet_specs), %{})
 
       @before_compile Etiquette.Spec
-
-      @docs_format unquote(docs_format)
 
       @type packet :: bitstring()
     end
