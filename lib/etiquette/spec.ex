@@ -72,6 +72,17 @@ defmodule Etiquette.Spec do
       Module.put_attribute(__MODULE__, unquote(@current_packet_id), unquote(id))
       Module.put_attribute(__MODULE__, unquote(@current_packet_ast), [])
 
+      existing_packet_specs = Module.get_attribute(__MODULE__, unquote(@packet_specs))
+
+      if unquote(id) in Map.keys(existing_packet_specs) do
+        raise CompileError,
+          file: unquote(env.file),
+          line: unquote(env.line),
+          description: """
+          There already exists a packet specification with the same name or id (:#{unquote(id)}).
+          """
+      end
+
       # Create empty spec
       Module.put_attribute(
         __MODULE__,
@@ -239,17 +250,14 @@ defmodule Etiquette.Spec do
     fixed_value = Keyword.get(opts, :fixed, nil)
     length_in = Keyword.get(opts, :length_in, :bits)
 
-    snake_case_name = snake_case(name)
-
     quote bind_quoted: [
             file: env.file,
             line: env.line,
             current_packet_id: @current_packet_id,
-            snake_case_name: snake_case_name,
             packet_specs: @packet_specs,
             part_of: part_of,
             name: name,
-            id: id,
+            id: id || String.to_atom(snake_case(name)),
             length: length,
             length_in: length_in,
             fixed_value: fixed_value,
@@ -268,12 +276,20 @@ defmodule Etiquette.Spec do
       current_packet_spec = Map.get(all_packet_specs, packet_id)
       current_packet_spec_fields = Map.get(current_packet_spec, :fields, [])
 
-      ex_name = snake_case_name
+      if id in Enum.map(current_packet_spec_fields, & &1.ex_name) or
+           name in Enum.map(current_packet_spec_fields, & &1.name) do
+        raise CompileError,
+          file: file,
+          line: line,
+          description: """
+          The field "#{name}, id: #{id}" already exists in this packet.
+          """
+      end
 
       new_packet_spec =
         %Field{
           name: name,
-          ex_name: id || String.to_atom(ex_name),
+          ex_name: id,
           length: length,
           length_in: length_in,
           part_of: part_of,
@@ -304,19 +320,16 @@ defmodule Etiquette.Spec do
     length_in = Keyword.get(opts, :length_in, :bits)
     decoder = Keyword.get(opts, :decoder, nil)
 
-    snake_case_name = snake_case(name)
-
     first..last//step = length
 
     quote bind_quoted: [
             file: env.file,
             line: env.line,
             current_packet_id: @current_packet_id,
-            snake_case_name: snake_case_name,
             packet_specs: @packet_specs,
             part_of: part_of,
             name: name,
-            id: id,
+            id: id || String.to_atom(snake_case(name)),
             first: first,
             last: last,
             step: step,
@@ -338,12 +351,10 @@ defmodule Etiquette.Spec do
       current_packet_spec = Map.get(all_packet_specs, packet_id)
       current_packet_spec_fields = Map.get(current_packet_spec, :fields, [])
 
-      ex_name = snake_case_name
-
       new_packet_spec =
         %Field{
           name: name,
-          ex_name: id || String.to_atom(ex_name),
+          ex_name: id,
           length: first..last//step,
           length_in: length_in,
           decoder: decoder,
