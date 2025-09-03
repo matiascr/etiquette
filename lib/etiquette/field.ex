@@ -146,18 +146,35 @@ defmodule Etiquette.Field do
   end
 
   def build_args_ast(fields) do
-    for field <- fields, do: {field.ex_name, [], Elixir}
+    fields
+    |> Enum.filter(fn
+      %Field{fixed_value: nil} -> true
+      _ -> false
+    end)
+    |> Enum.map(fn field -> {field.ex_name, [], Elixir} end)
   end
 
   def build_args_spec_ast(fields) do
-    Enum.map(fields, fn
-      %Field{length: length} when is_integer(length) -> {:.., [], [0, Bitwise.bsl(1, length) - 1]}
-      _ -> {:bitstring, [], Elixir}
+    fields
+    |> Enum.filter(fn
+      %Field{fixed_value: nil} -> true
+      _ -> false
+    end)
+    |> Enum.map(fn
+      %Field{ex_name: ex_name, length: length} when is_integer(length) ->
+        {ex_name, {:.., [], [0, Bitwise.bsl(1, length) - 1]}}
+
+      %Field{ex_name: ex_name} ->
+        {ex_name, {:non_neg_integer, [], []}}
     end)
   end
 
   def build_args_guard_ast(fields) do
     fields
+    |> Enum.filter(fn
+      %Field{fixed_value: nil} -> true
+      _ -> false
+    end)
     |> Enum.map(fn
       %Field{ex_name: ex_name, length: length} when is_integer(length) ->
         [
@@ -181,6 +198,9 @@ defmodule Etiquette.Field do
   def build_bit_string_ast(fields) do
     segments =
       Enum.map(fields, fn
+        %Field{fixed_value: fixed_value, length: length} when not is_nil(fixed_value) ->
+          {:"::", [], [fixed_value, {:size, [], [length]}]}
+
         %Field{ex_name: ex_name, length: length} when is_integer(length) ->
           {:"::", [], [{ex_name, [], Elixir}, {:size, [], [length]}]}
 

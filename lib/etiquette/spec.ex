@@ -444,7 +444,7 @@ defmodule Etiquette.Spec do
 
           #{unquote(parse_rfc_spec(spec))}
           """
-          @spec unquote(build_name)(unquote_splicing(args_spec_ast)) :: bitstring()
+          @spec unquote(build_name)(unquote_splicing(args_ast)) :: bitstring() when unquote(args_spec_ast)
           def unquote({:when, [], [{build_name, [], args_ast}, args_guard_ast]}) do
             unquote(bit_string_ast)
           end
