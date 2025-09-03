@@ -135,7 +135,7 @@ by looking at the length. For example, A single byte of data cannot be a "Hello"
 packet by itself (because the specification has declared it to be at least 4
 bytes), so `is_hello?` would be false in this case. However, if the argument of
 `is_hello?` is larger than the specified length of the packet, it can be true
-for the same reason that the generated `parse` methods can accept larger
+for the same reason that the generated `parse` functions can accept larger
 binaries than what they parse. See
 [the length guide](/guides/how_tos/length_of.md#more-specialized-options) for
 more details on why this is the case.

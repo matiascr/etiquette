@@ -9,7 +9,20 @@ A new way of creating and following a protocol
 
 ## Summary
 
-Following the example:
+Following an example Header Packet
+
+<table aria-label="Header Packet">
+  <tr>
+    <th colspan="8">Byte 0</th>
+  </tr>
+  <tr>
+    <td colspan="1">Header Fixed</td>
+    <td colspan="2">Packet Type</td>
+    <td colspan="5">Type-Specific fields</td>
+  </tr>
+</table>
+
+We can turn it into
 
 ```elixir
 defmodule Example.Spec do
@@ -38,7 +51,7 @@ defmodule Example.Spec do
 end
 ```
 
-Now we have a specification such that:
+Such that we now have a specification
 
 ```elixir
 iex> Example.Spec.is_header_packet?(<<1::1, "A random string inside 30 bytes"::30>>)
@@ -64,7 +77,7 @@ iex> Example.Spec.parse_bye_packet(<<1::1, 0b11::2, 0xFF, 0xAA>>)
 }
 ```
 
-Not only are the methods available and functional, but the provided
+Not only are the functions available and functional, but the provided
 documentation and other arguments are also analyzed to provide in-depth
 documentation of each generated function:
 
@@ -72,14 +85,4 @@ documentation of each generated function:
 
 ![example_function_help_2](https://github.com/user-attachments/assets/fd02b75b-a698-497e-ae2e-65c74a68a0fb)
 
-## Roadmap
-
-- [x] Generate pretty markdown documentation from the spec module
-- [x] Generate pretty markdown documentation for each function
-- [x] Generate complete typespecs in functions for easier use
-- [x] Implement `build_x_packet(field1, field2, ...) :: <<...>>`
-- [x] Implement `parse_x_packet(<<...>>) :: %{field1: ..., field2: ..., ...}`
-- [x] Improve inheritance between packet specs (for using the same header, for
-      fixing values of previously defined fields, etc...) TODO: Add more tests
-      to cover corner cases of inheritance (order changes, last field injection,
-      validation of lengths).
+![example_function_help_3](https://github.com/user-attachments/assets/7f1fe3fa-2134-49ff-98d7-bb970ef8c71d)

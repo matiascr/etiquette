@@ -68,7 +68,7 @@ why we used the `id` in field "Length" and not in the others.
 
 If we can't specify the length of a field at the time declaration, it's also
 possible to provide a `decoder: &capture/1` argument. This can help us extract
-the value we want from the binary, using whichever method we want to determine
+the value we want from the binary, using whichever approach we want to determine
 the length of the field. To use, we need to provide a function capture that
 takes one argument and returns a tuple with the desired binary and with the
 remaining data, normally taking the form:
