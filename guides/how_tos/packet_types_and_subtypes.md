@@ -1,15 +1,16 @@
 # Packet types and subtypes
 
-As we have seen, in the [salute example](/guides/how_tos/validating_packet_formats.md), it's
-possible to define the same packet structure for multiple packet types, and use
-a field that contains a fixed value to differentiate between them.
+As we have seen, in the
+[salute example](/guides/how_tos/validating_packet_formats.md), it's possible to
+define the same packet structure for multiple packet types, and use a field that
+contains a fixed value to differentiate between them.
 
 Since this is a very common pattern in protocol specifications, some niceties
 from [`Etiquette.Spec`](`Etiquette.Spec`) let us create them in an even more
 concise manner.
 
-If you read the [`packet`](`Etiquette.Spec.packet/3`) documentation, there's
-an available `:of` argument. This lets us inherit the structure of a previously
+If you read the [`packet`](`Etiquette.Spec.packet/3`) documentation, there's an
+available `:of` argument. This lets us inherit the structure of a previously
 defined packet, and reuse it in a way where we only need to specify the
 differences.
 
@@ -147,7 +148,7 @@ end
 ```
 
 This is only one way you can use the `:of` argument in
-[`packet`](`Etiquette.Spec.packet/3`). Continue reading to learn about how
-you can create bespoke documentation for variants of the same field, or even
-split the same field of a parent specification into several fields in children
+[`packet`](`Etiquette.Spec.packet/3`). Continue reading to learn about how you
+can create bespoke documentation for variants of the same field, or even split
+the same field of a parent specification into several fields in children
 specifications.

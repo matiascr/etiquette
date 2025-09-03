@@ -137,9 +137,10 @@ bytes), so `is_hello?` would be false in this case. However, if the argument of
 `is_hello?` is larger than the specified length of the packet, it can be true
 for the same reason that the generated `parse` methods can accept larger
 binaries than what they parse. See
-[the length guide](/guides/how_tos/length_of.md#more-specialized-options) for more details on
-why this is the case.
+[the length guide](/guides/how_tos/length_of.md#more-specialized-options) for
+more details on why this is the case.
 
-Continue through the [Packet Types and Subtypes](/guides/how_tos/packet_types_and_subtypes.md)
-guide to learn about other [`field`](`Etiquette.Spec.field/3`) arguments that
-can help you streamline the creation of packet variants.
+Continue through the
+[Packet Types and Subtypes](/guides/how_tos/packet_types_and_subtypes.md) guide
+to learn about other [`field`](`Etiquette.Spec.field/3`) arguments that can help
+you streamline the creation of packet variants.

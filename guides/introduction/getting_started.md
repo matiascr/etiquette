@@ -1,8 +1,8 @@
 # Getting started
 
 This guide is an introduction to the [`Etiquette`](`Etiquette`) library and,
-more specifically, to how to use the [`Etiquette.Spec`](`Etiquette.Spec`)
-module to create packet specifications.
+more specifically, to how to use the [`Etiquette.Spec`](`Etiquette.Spec`) module
+to create packet specifications.
 
 ## Adding Etiquette to a project
 

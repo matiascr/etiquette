@@ -1,8 +1,8 @@
 # Overview
 
 Etiquette is a library for creating packet specifications. The usage of packets
-is standard across most network communications, but it can have other uses and be
-a good way to efficiently store data and move it around.
+is standard across most network communications, but it can have other uses and
+be a good way to efficiently store data and move it around.
 
 Let's take a simple packet specification. The UDP header format:
 
@@ -72,14 +72,13 @@ generate the following:
   ```
   The parser function returns as part of the result the remaining data after
   extracting the fields. Since the size depends on the data sent, it is possible
-  that some data falls outside the determined length of the last field and
-  which may still be useful.
+  that some data falls outside the determined length of the last field and which
+  may still be useful.
 - `UDPSpec.create_udp_header/5`: (TODO) Will create the binary from the given
   arguments. Depending on the spec, the function will have a different number of
   arguments, one for each field.
 
 Above we used a very simple example. To define more complex specifications,
-there are more arguments and options for
-[`packet`](`Etiquette.Spec.packet/3`) and
-[`field`](`Etiquette.Spec.field/3`). Continue reading the guides to learn how
-to use the multiple available options to your advantage.
+there are more arguments and options for [`packet`](`Etiquette.Spec.packet/3`)
+and [`field`](`Etiquette.Spec.field/3`). Continue reading the guides to learn
+how to use the multiple available options to your advantage.

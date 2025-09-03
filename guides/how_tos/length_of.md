@@ -51,8 +51,8 @@ be of variable length.
 
 ## Specifying the length of a field
 
-When calling [`field`](`Etiquette.Spec.field/3`), it lets you specify the
-length of the field in different ways. The first one is a fixed length, using an
+When calling [`field`](`Etiquette.Spec.field/3`), it lets you specify the length
+of the field in different ways. The first one is a fixed length, using an
 integer. This will fix the length of the field (in bits) to that number.
 
 The other one is to use a `Range`. Using a `Range` we can specify a minimum

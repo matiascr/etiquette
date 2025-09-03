@@ -72,13 +72,12 @@ documentation of each generated function:
 
 ![example_function_help_2](https://github.com/user-attachments/assets/fd02b75b-a698-497e-ae2e-65c74a68a0fb)
 
-
 ## Roadmap
 
 - [x] Generate pretty markdown documentation from the spec module
 - [x] Generate pretty markdown documentation for each function
 - [x] Generate complete typespecs in functions for easier use
-- [ ] Implement `generate_x_packet(field1, field2, ...) :: <<...>>`
+- [x] Implement `build_x_packet(field1, field2, ...) :: <<...>>`
 - [x] Implement `parse_x_packet(<<...>>) :: %{field1: ..., field2: ..., ...}`
 - [x] Improve inheritance between packet specs (for using the same header, for
       fixing values of previously defined fields, etc...) TODO: Add more tests
