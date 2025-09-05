@@ -5,22 +5,22 @@ defmodule SimpleOfTest do
   packet "Header Packet", id: :header_packet do
     field "Header Fixed", 1, fixed: 1
     field "Packet Type", 2
-    field "Type-Specific fields", (..)
+    field "Type-Specific fields", 8
   end
 
   packet "Hello Packet", id: :hello_packet, of: :header_packet do
     field "Packet Type", 2, fixed: 0b00
-    field "Hello-specific payload", (..)
+    field "Hello-specific payload", 8, part_of: :type_specific_fields
   end
 
   packet "Conversation Packet", id: :conversation_packet, of: :header_packet do
     field "Packet Type", 2, fixed: 0b01
-    field "Conversation-specific payload", (..)
+    field "Conversation-specific payload", 8, part_of: :type_specific_fields
   end
 
   packet "Bye Packet", id: :bye_packet, of: :header_packet do
     field "Packet Type", 2, fixed: 0b11
-    field "Bye-specific payload", (..)
+    field "Bye-specific payload", 8, part_of: :type_specific_fields
   end
 
   # Tests
@@ -33,21 +33,21 @@ defmodule SimpleOfTest do
     end
 
     test "hello packet spec" do
-      hello_packet = <<@header_bits, 0b00::2>>
+      hello_packet = <<@header_bits, 0b00::2, "payload">>
       assert is_hello_packet?(hello_packet)
       refute is_conversation_packet?(hello_packet)
       refute is_bye_packet?(hello_packet)
     end
 
     test "conversation packet spec" do
-      conversation_packet = <<@header_bits, 0b01::2>>
+      conversation_packet = <<@header_bits, 0b01::2, "payload">>
       refute is_hello_packet?(conversation_packet)
       assert is_conversation_packet?(conversation_packet)
       refute is_bye_packet?(conversation_packet)
     end
 
     test "bye packet spec" do
-      bye_packet = <<@header_bits, 0b11::2>>
+      bye_packet = <<@header_bits, 0b11::2, "payload">>
       refute is_hello_packet?(bye_packet)
       refute is_conversation_packet?(bye_packet)
       assert is_bye_packet?(bye_packet)
