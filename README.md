@@ -75,6 +75,21 @@ iex> Example.Spec.parse_bye_packet(<<1::1, 0b11::2, 0xFF, 0xAA>>)
   },
   <<170>>
 }
+
+iex> # Notice how only the fields that are not fixed need to be provided
+iex> Example.Spec.build_bye_packet(0xFF) |> Example.Spec.parse_bye_packet()
+{
+  %{
+    header_fixed: 1,
+    packet_type: 3,
+    bye_specific_payload: 0xFF
+  },
+  ""
+}
+
+
+iex> Example.Spec.build_bye_packet(0xFF) |> Example.Spec.is_bye_packet?()
+true
 ```
 
 Not only are the functions available and functional, but the provided

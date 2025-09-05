@@ -74,9 +74,9 @@ generate the following:
   extracting the fields. Since the size depends on the data sent, it is possible
   that some data falls outside the determined length of the last field and which
   may still be useful.
-- `UDPSpec.create_udp_header/5`: (TODO) Will create the binary from the given
-  arguments. Depending on the spec, the function will have a different number of
-  arguments, one for each field.
+- `UDPSpec.build_udp_header/5`: Will create the binary from the given arguments.
+  Depending on the spec, the function will have a different number of arguments,
+  one for each field that is not of a fixed value.
 
 Above we used a very simple example. To define more complex specifications,
 there are more arguments and options for [`packet`](`Etiquette.Spec.packet/3`)
