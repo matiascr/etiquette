@@ -1,8 +1,9 @@
-defmodule SaluteTest do
+defmodule SaluteSpec do
+  @moduledoc false
   use ExUnit.Case
   use Etiquette.Spec
 
-  # Replicates the guides/how_tos/packet_types_and_subtypes.md spec
+  # Replicates the refined guides/how_tos/packet_types_and_subtypes.md spec
 
   packet "My Salute Packet", id: :salute do
     field "Source Port", 8
@@ -12,16 +13,14 @@ defmodule SaluteTest do
     field "Payload", 8
   end
 
-  packet "Hello Packet", id: :hello do
-    field "Source Port", 8
+  packet "Hello Packet", id: :hello, of: :salute do
     field "Destination Port", 8
     field "Packet Type", 2, fixed: 0b00
     field "Payload Type", 6
     field "Payload", 8
   end
 
-  packet "Goodbye Packet", id: :goodbye do
-    field "Source Port", 8
+  packet "Goodbye Packet", id: :goodbye, of: :salute do
     field "Destination Port", 8
     field "Packet Type", 2, fixed: 0b11
     field "Payload Type", 6

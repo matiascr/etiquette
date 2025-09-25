@@ -1,5 +1,5 @@
 defmodule LengthTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   use Etiquette.Spec
 
   packet "Pack" do

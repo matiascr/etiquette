@@ -1,5 +1,5 @@
 defmodule PartOfTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   use Etiquette.Spec
 
   packet "Packet" do

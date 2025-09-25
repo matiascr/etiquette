@@ -101,3 +101,9 @@ documentation of each generated function:
 ![example_function_help_2](https://github.com/user-attachments/assets/fd02b75b-a698-497e-ae2e-65c74a68a0fb)
 
 ![example_function_help_3](https://github.com/user-attachments/assets/7f1fe3fa-2134-49ff-98d7-bb970ef8c71d)
+
+# Future work
+
+- [ ] Add support for frames. Add the option to provide a list of frames as part
+      of a frames field/payload. It should have a similar structure and options
+      to `Etiquette.Spec.packet/3`.

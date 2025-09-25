@@ -1,5 +1,5 @@
 defmodule SimpleOfTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   use Etiquette.Spec
 
   packet "Header Packet", id: :header_packet do

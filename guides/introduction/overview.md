@@ -61,7 +61,7 @@ generate the following:
   fields names as keys and the values as the parsed data according to the spec.
   So, the result following the example above would be something like:
   ```elixir
-  {packet_data, remaining_data} = UDPSpec.parse_udp_header(some_data)
+  iex> {packet_data, remaining_data} = UDPSpec.parse_udp_header(some_data)
   %{
     source_port: ...,
     destination_port: ...,
