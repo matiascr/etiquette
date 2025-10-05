@@ -80,7 +80,7 @@ defmodule Etiquette.Field do
         if not fits_unsigned?(fixed_value, length) do
           raise ArgumentError, """
           Fixed value #{fixed_value} won't fit in the given length #{inspect(length)}.
-          The highest value you can fit in #{inspect(length)} #{if length == 1, do: "bit", else: "bits"} is #{2 ** length - 1} / 0x#{Integer.to_string(2 ** length - 1, 16)}.
+          The highest value you can fit in #{inspect(length)} #{if length == 1, do: "bit", else: "bits"} is #{2 ** length - 1} (or 0x#{Integer.to_string(2 ** length - 1, 16)}).
           """
         end
 

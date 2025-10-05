@@ -83,6 +83,19 @@ defmodule Etiquette.Spec do
           """
       end
 
+      of = unquote(Keyword.get(args, :of))
+
+      if unquote(id) == of do
+        raise CompileError,
+          file: unquote(env.file),
+          line: unquote(env.line),
+          description: """
+          Cannot derive `:#{unquote(id)}` from itself.
+
+          To fix, provide an `:of` argument a valid packet ID that is not equal to the packet that is being defined here.
+          """
+      end
+
       # Create empty spec
       Module.put_attribute(
         __MODULE__,
@@ -93,7 +106,7 @@ defmodule Etiquette.Spec do
           fields: [],
           id: unquote(id),
           name: unquote(name),
-          of: unquote(Keyword.get(args, :of)),
+          of: of,
           file: unquote(env.file),
           line: unquote(env.line)
         })
@@ -391,7 +404,43 @@ defmodule Etiquette.Spec do
 
         fields =
           if is_atom(spec.of) and not is_nil(spec.of) do
-            parent_spec = packet_specs[spec.of]
+            parent_spec =
+              Map.get(packet_specs, spec.of) ||
+                (
+                  relevant_spec_names =
+                    packet_specs
+                    |> Map.keys()
+                    |> Enum.filter(fn key -> id != key end)
+
+                  closest_name_hint =
+                    relevant_spec_names
+                    |> Enum.filter(fn key ->
+                      String.jaro_distance(Atom.to_string(key), Atom.to_string(spec.of)) > 0.75
+                    end)
+                    |> case do
+                      list when list != [] ->
+                        closest_name =
+                          Enum.max(list, fn prev, key ->
+                            String.jaro_distance(Atom.to_string(prev), Atom.to_string(spec.of)) >=
+                              String.jaro_distance(Atom.to_string(key), Atom.to_string(spec.of))
+                          end)
+
+                        "Did you mean to use `:#{closest_name}`?"
+
+                      _ ->
+                        ""
+                    end
+
+                  raise CompileError,
+                    file: spec.file,
+                    line: spec.line,
+                    description: """
+                    Could not find the referenced packet specification `:#{spec.of}`. #{closest_name_hint}
+
+                    The available packet specifications to implement or extend have one of the following IDs [#{Enum.map_join(relevant_spec_names, ", ", &":#{&1}")}]
+                    """
+                )
+
             merge_parent_and_child_of(parent_spec.fields, spec.fields)
           else
             spec.fields
