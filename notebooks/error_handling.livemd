@@ -1,0 +1,84 @@
+# Etiquette error handling demo
+
+```elixir
+Mix.install([
+  {:etiquette, github: "matiascr/etiquette"}
+])
+```
+
+## Errors
+
+Below are a few examples of the helpful error handling provided by the library
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Incorrect argument handling
+
+On unspecified fields it will hint at next steps
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule Spec do
+  use Etiquette.Spec
+
+  packet "Hello Packet" do
+  end
+end
+```
+
+Not allowed field lengths will be reported
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule Spec do
+  use Etiquette.Spec
+
+  packet "Packet Name" do
+    field "First field", 0
+  end
+end
+```
+
+`Spec` will detect incorrect `:of` arguments
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule Spec do
+  use Etiquette.Spec
+
+  packet "Hello Packet" do
+    field "Type Field", 2, doc: "Determines the type of the header"
+    field "Reserved Bits", 2
+  end
+
+  packet "Formal Hello Packet", of: :helo_packet do
+    field "Type Field", 2, fixed: 0x3
+    field "First reserved bit", 1, part_of: :reserved_bits, fixed: 0x1
+    field "Second reserved bit", 1, part_of: :reserved_bits
+  end
+end
+```
+
+On fixed values that won't fit, `Spec` will raise an error
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+defmodule Spec do
+  use Etiquette.Spec
+
+  packet "Hello Packet" do
+    field "Type Field", 2, doc: "Determines the type of the header"
+    field "Reserved Bits", 2, doc: "To be left empty"
+  end
+
+  packet "Formal Hello Packet", of: :hello_packet do
+    field "Type Field", 2, fixed: 0x4
+    field "First reserved bit", 1, part_of: :reserved_bits, fixed: 0x1
+    field "Second reserved bit", 1, part_of: :reserved_bits
+  end
+end
+```

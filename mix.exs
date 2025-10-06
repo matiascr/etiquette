@@ -46,6 +46,7 @@ defmodule Etiquette.MixProject do
     [
       source_ref: "v#{@version}",
       main: "overview",
+      assets: %{"notebooks/files" => "files"},
       extra_section: "GUIDES",
       formatters: ["html", "epub"],
       groups_for_modules: groups_for_modules(),
@@ -63,14 +64,16 @@ defmodule Etiquette.MixProject do
       "guides/introduction/overview.md",
       "guides/how_tos/length_of.md",
       "guides/how_tos/validating_packet_formats.md",
-      "guides/how_tos/packet_types_and_subtypes.md"
+      "guides/how_tos/packet_types_and_subtypes.md",
+      "notebooks/error_handling.livemd"
     ]
   end
 
   defp groups_for_extras do
     [
       Introduction: ~r/guides\/introduction\/.?/,
-      "How-To's": ~r/guides\/how_tos\/.?/
+      "How-To's": ~r/guides\/how_tos\/.?/,
+      "Example notebooks": ~r/notebooks\/.?/
     ]
   end
 
